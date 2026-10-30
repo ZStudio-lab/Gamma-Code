@@ -1,9 +1,12 @@
 #include "ui/render.hpp"
 
+#include "ui/theme.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <ios>
 #include <iostream>
@@ -35,7 +38,6 @@ const char* tool_verb(const std::string& name);
 
 namespace {
 
-bool g_colors = false;
 bool g_spinner_allowed = false; // colors AND real terminal (not captured/redirected)
 
 #ifdef _WIN32
@@ -65,27 +67,15 @@ void set_title_locked(const std::wstring& title) {
 }
 #endif
 
-std::string wrap(const char* code, const std::string& text) {
-  if (!g_colors) return text;
-  return std::string(code) + text + "\033[0m";
-}
-
-std::string bold(const std::string& text) { return wrap("\033[1m", text); }
-std::string dim(const std::string& text) { return wrap("\033[90m", text); }
-std::string red(const std::string& text) { return wrap("\033[31m", text); }
-std::string green(const std::string& text) { return wrap("\033[32m", text); }
-std::string yellow(const std::string& text) { return wrap("\033[33m", text); }
-std::string cyan(const std::string& text) { return wrap("\033[36m", text); }
-std::string bright_cyan(const std::string& text) { return wrap("\033[1;96m", text); }
-
-// Display width in columns (counts UTF-8 code points).
-std::size_t display_width(const std::string& text) {
-  std::size_t columns = 0;
-  for (const char c : text) {
-    if ((static_cast<unsigned char>(c) & 0xC0) != 0x80) ++columns; // skip continuation bytes
-  }
-  return columns;
-}
+// Role-based color helpers: every console token goes through the theme so
+// NO_COLOR, redirection and 256-color hosts are handled in exactly one place.
+using theme::Role;
+std::string bold(const std::string& text) { return theme::paint_bold(text, Role::Highlight); }
+std::string dim(const std::string& text) { return theme::paint(text, Role::Muted); }
+std::string red(const std::string& text) { return theme::paint(text, Role::Error); }
+std::string green(const std::string& text) { return theme::paint(text, Role::Success); }
+std::string yellow(const std::string& text) { return theme::paint(text, Role::Warn); }
+std::string cyan(const std::string& text) { return theme::paint(text, Role::Secondary); }
 
 // Flattens tool arguments for a one-line display. Values are truncated —
 // this is a summary for humans; the model always sees the full arguments.
@@ -115,13 +105,6 @@ std::vector<std::string> split_lines(const std::string& text) {
     begin = end + 1;
   }
   return lines;
-}
-
-std::string repeat(const std::string& glyph, std::size_t count) {
-  std::string out;
-  out.reserve(glyph.size() * count);
-  for (std::size_t i = 0; i < count; ++i) out += glyph;
-  return out;
 }
 
 // --- unified diff preview for the permission box ------------------------------
@@ -250,8 +233,11 @@ void init_terminal() {
   }
 #endif
   const char* no_color = std::getenv("NO_COLOR");
-  g_colors = (no_color == nullptr || no_color[0] == '\0');
-  g_spinner_allowed = g_colors && (GAMMA_ISATTY(GAMMA_FILENO(stderr)) != 0);
+  const bool want_colors = (no_color == nullptr || no_color[0] == '\0');
+  theme::set_colors(want_colors);
+  theme::detect_capabilities();
+  g_spinner_allowed =
+      want_colors && (GAMMA_ISATTY(GAMMA_FILENO(stderr)) != 0);
 }
 
 void set_status_title(const std::string& status) {
@@ -296,26 +282,25 @@ std::string prompt_string() {
   if (leaf.size() > 24) {
     leaf = "…" + leaf.substr(leaf.size() - 23);
   }
-  return yellow("⟨" + leaf + "⟩") + " " + bright_cyan("γ ❯") + " ";
+  return theme::paint("⟨" + leaf + "⟩", Role::Faint) + " " +
+         theme::paint_bold("γ", Role::Accent) + " " +
+         theme::paint("❯", Role::Secondary) + " ";
 }
 
 void print_banner(const Options& options) {
-  const std::string title = "  Gamma Code  —  " + std::string(GAMMA_VERSION) + "  ";
-  const std::string subtitle = "  local-only coding agent · Ollama on 127.0.0.1 only  ";
-  const std::size_t width = std::max(display_width(title), display_width(subtitle));
-
-  std::cout << yellow("╭" + repeat("─", width) + "╮") << "\n";
-  std::cout << yellow("│") << bright_cyan(bold(title))
-            << repeat(" ", width - display_width(title)) << yellow("│") << "\n";
-  std::cout << yellow("│") << dim(subtitle)
-            << repeat(" ", width - display_width(subtitle)) << yellow("│") << "\n";
-  std::cout << yellow("╰" + repeat("─", width) + "╯") << "\n";
-  std::cout << dim("  model ") << bold(options.model)
+  // Framed header: the γ wordmark in the Accent role, status line beneath —
+  // borders in Faint. The info line dials in the live values in Highlight.
+  const std::string title = theme::paint_bold("γ Gamma Code " + std::string(GAMMA_VERSION),
+                                              Role::Accent);
+  const std::string subtitle =
+      theme::paint("local-only coding agent · Ollama on 127.0.0.1 only", Role::Muted);
+  std::cout << "\n" << theme::frame({title, subtitle}) << "\n";
+  std::cout << "  " << dim("model ") << bold(options.model)
             << dim("  ·  mode ") << cyan(mode_name(options.mode))
-            << dim("  ·  budget ") << std::to_string(budget_tokens(options))
+            << dim("  ·  budget ") << green(std::to_string(budget_tokens(options)))
             << dim(" tokens") << "\n";
   if (!options.workspace.empty()) {
-    std::cout << dim("  workspace ") << options.workspace << "\n";
+    std::cout << dim("  workspace ") << cyan(options.workspace) << "\n";
   }
   std::cout << dim("  /help for commands · fully automated: tools run without prompts") << "\n";
 }
@@ -324,7 +309,8 @@ void print_tool_call(const std::string& name, const nlohmann::json& arguments) {
   // The window title mirrors execution, not just streaming.
   set_status_title(tool_verb(name) ? std::string(tool_verb(name)) : "running " + name + "…");
   const std::string summary = summarize_arguments(arguments);
-  std::cout << "  " << bright_cyan("⏺") << " " << bold(name);
+  std::cout << "  " << theme::paint("⏺", Role::Accent) << " "
+            << theme::paint_bold(name, Role::Highlight);
   if (!summary.empty()) std::cout << dim("(" + summary + ")");
   std::cout << "\n";
 }
@@ -334,38 +320,31 @@ void print_tool_result(bool ok, const std::string& output, const std::string& er
   if (!ok) {
     std::string shown = error.empty() ? "failed" : error;
     if (shown.size() > 300) shown = shown.substr(0, 297) + "…";
-    std::cout << "  " << red("✗") << " " << red(shown) << "\n";
+    std::cout << "  " << red("✗ " + shown) << "\n";
     return;
   }
   const std::vector<std::string> lines = split_lines(output);
   const std::size_t shown = std::min<std::size_t>(lines.size(), 3);
   for (std::size_t i = 0; i < shown; ++i) {
-    std::cout << dim("  └ " + lines[i]) << "\n";
+    std::cout << theme::paint("  └ ", Role::Faint) + lines[i] << "\n";
   }
   if (lines.size() > shown) {
-    std::cout << dim("  └ … (+" + std::to_string(lines.size() - shown) + " more lines)") << "\n";
+    std::cout << theme::paint("  └ … (+" + std::to_string(lines.size() - shown) +
+                              " more lines)", Role::Faint) << "\n";
   }
 }
 
 void print_assistant_message(const std::string& text) {
-  std::cout << "  " << bright_cyan("⏺") << " " << text << "\n";
+  // Markdown-aware reply: fences render as a dim code rail, `inline code`
+  // lights up teal, blank lines collapse at the tail.
+  theme::print_markdown_reply(text);
 }
 
 bool ask_yes_no(const std::string& proposal) {
   const std::vector<std::string> lines = split_lines(proposal);
-  std::size_t width = 18; // room for the "permission" label
-  for (const std::string& line : lines) {
-    width = std::max(width, display_width(line));
-  }
-
   std::cout << "\n";
-  std::cout << yellow("╭─ permission " + repeat("─", width - 12) + "╮") << "\n";
-  for (const std::string& line : lines) {
-    const std::string pad = repeat(" ", width - display_width(line));
-    std::cout << yellow("│") << " " << line << pad << " " << yellow("│") << "\n";
-  }
-  std::cout << yellow("╰" + repeat("─", width + 2) + "╯") << "\n";
-  std::cout << cyan("  allow? ") << dim("[y/N] ") << std::flush;
+  std::cout << theme::frame_titled("permission", Role::Warn, lines) << "\n";
+  std::cout << "  " << cyan("allow") << dim("  [y/N] ") << std::flush;
 
   std::string answer;
   if (!std::getline(std::cin, answer)) return false; // EOF ⇒ no
@@ -520,7 +499,8 @@ void Spinner::start() {
             label = self->label_;
           }
           std::fprintf(stderr, "\r%s %s (%ss)",
-                       yellow(kFrames[frame % 4]).c_str(), label.c_str(), buffer);
+                       theme::paint(kFrames[frame % 4], theme::Role::Accent).c_str(),
+                       theme::paint(label, theme::Role::Muted).c_str(), buffer);
           std::fflush(stderr);
           std::this_thread::sleep_for(std::chrono::milliseconds(250));
           ++frame;
@@ -533,7 +513,7 @@ void Spinner::stop() {
   if (!spinning_.exchange(false)) return;
   if (thread_.joinable()) thread_.join();
   set_status_title(""); // request over — back to the bare window title
-  if (g_colors) {
+  if (theme::colors_enabled()) {
     std::fprintf(stderr, "\r\033[2K"); // wipe the indicator line
     std::fflush(stderr);
   }

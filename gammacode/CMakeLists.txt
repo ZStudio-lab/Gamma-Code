@@ -65,6 +65,7 @@ add_executable(gamma
   src/tools/fs.cpp
   src/tools/shell.cpp
   src/ui/render.cpp
+  src/ui/theme.cpp
   src/ui/launcher.cpp
 )
 

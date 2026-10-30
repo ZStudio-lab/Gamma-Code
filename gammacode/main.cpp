@@ -16,6 +16,7 @@
 #include "tools/registry.hpp"
 #include "ui/launcher.hpp"
 #include "ui/render.hpp"
+#include "ui/theme.hpp"
 
 namespace gamma_repl {
 
@@ -30,29 +31,48 @@ std::string mode_line(const Options& options) {
 }
 
 void print_help(std::ostream& out) {
-  out << R"(Commands:
-  /model <name>     switch the Ollama model
-  /mode <plan|ask|auto>  switch permission mode (default ask)
-  /context          show message count and estimated token usage
-  /compact          force context compaction
-  /clear            start a fresh conversation (removes the saved session)
-  /exit             quit gamma
-  /help             this list
-
-Tools available:
-  read_file(path, start_line?, end_line?)
-  write_file(path, content)            no prompt (auto is default)
-  edit_file(path, old_string, new_string)  unique match; no prompt
-  list_dir(path?)                      lists a directory
-  glob(pattern)                        finds files by pattern
-  grep(pattern, path?, glob?)          regex search over files
-  run_command(cmd, timeout_seconds?)   no prompt (use --no-yolo to gate it)
-
-Modes: auto (default, nothing asks) · ask (writes/shell prompt) · plan (read-only)
-
-Keys: ESC (or Ctrl+C) while the model streams = stop its output.
-      In the launcher, N = new session; Esc works anywhere you'd guess.
-)";
+  using gamma::ui::theme::paint;
+  using gamma::ui::theme::paint_bold;
+  using gamma::ui::theme::Role;
+  out << "\n" << paint_bold("Commands", Role::Accent) << "\n";
+  struct Cmd { const char* name; const char* args; const char* desc; };
+  static constexpr Cmd kCmds[] = {
+      {"/model", "<name>", "switch the Ollama model"},
+      {"/mode", "<plan|ask|auto>", "switch permission mode (default ask)"},
+      {"/context", "", "message count + estimated token usage"},
+      {"/compact", "", "force context compaction"},
+      {"/clear", "", "fresh conversation (removes the saved session)"},
+      {"/exit", "", "quit gamma"},
+      {"/help", "", "this list"},
+  };
+  for (const Cmd& cmd : kCmds) {
+    out << "  " << paint(cmd.name, Role::Secondary);
+    if (cmd.args[0] != '\0') out << " " << paint(cmd.args, Role::Warn);
+    out << "  " << paint(cmd.desc, Role::Muted) << "\n";
+  }
+  out << "\n" << paint_bold("Tools", Role::Accent) << "\n";
+  struct ToolDoc { const char* sig; const char* note; };
+  static constexpr ToolDoc kTools[] = {
+      {"read_file(path, start_line?, end_line?)", ""},
+      {"write_file(path, content)", "no prompt (auto is default)"},
+      {"edit_file(path, old_string, new_string)", "unique match; no prompt"},
+      {"list_dir(path?)", "lists a directory"},
+      {"glob(pattern)", "finds files by pattern"},
+      {"grep(pattern, path?, glob?)", "regex search over files"},
+      {"run_command(cmd, timeout_seconds?)", "no prompt (use --no-yolo to gate it)"},
+  };
+  for (const ToolDoc& tool : kTools) {
+    out << "  " << paint(tool.sig, Role::Text);
+    if (tool.note[0] != '\0') out << "  " << paint(tool.note, Role::Muted);
+    out << "\n";
+  }
+  out << "\n" << paint_bold("Modes", Role::Accent) << "\n";
+  out << "  " << paint("auto", Role::Secondary) << paint(" (default, nothing asks) · ", Role::Muted)
+      << paint("ask", Role::Secondary) << paint(" (writes/shell prompt) · ", Role::Muted)
+      << paint("plan", Role::Secondary) << paint(" (read-only)", Role::Muted) << "\n";
+  out << "\n" << paint_bold("Keys", Role::Accent) << "\n";
+  out << "  " << paint("Esc / Ctrl+C", Role::Warn) << paint(" while the model streams = stop its output", Role::Muted) << "\n";
+  out << "  " << paint("N", Role::Warn) << paint(" in the launcher = new session · Esc backs out of menus", Role::Muted) << "\n\n";
 }
 
 std::vector<std::string> split_command(const std::string& line) {
@@ -98,9 +118,13 @@ class ReplSession {
       // FULL restore: every message — user turns, replies, tool calls and
       // their JSON results — is back in history; compaction also re-applies.
       const gamma::AgentLoop::Stats snapshot = loop_.stats();
-      std::cout << "  ⏺ restored conversation · " << (snapshot.messages - 1)
-                << " messages · ≈" << snapshot.tokens
-                << " tokens · /clear starts fresh\n";
+      std::cout << "  " << gamma::ui::theme::paint("⏺ restored", gamma::ui::theme::Role::Accent)
+                << gamma::ui::theme::paint(" conversation · ", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(snapshot.messages - 1), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint(" messages · ≈", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(snapshot.tokens), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint(" tokens · /clear starts fresh", gamma::ui::theme::Role::Muted)
+                << "\n";
     }
     while (true) {
       // Prompt is dynamic: it always shows the current workspace folder.
@@ -130,7 +154,9 @@ class ReplSession {
       // every turn, so an exit or crash resumes cleanly next launch.
       loop_.save_session(session_file_);
     } catch (const std::exception& error) {
-      std::cout << "  ✗ " << error.what() << "\n";
+      std::cout << "  " << gamma::ui::theme::paint(std::string("✗ ") + error.what(),
+                                            gamma::ui::theme::Role::Error)
+                << "\n";
     }
     return true;
   }
@@ -142,43 +168,63 @@ class ReplSession {
     if (command == "/help") {
       print_help(std::cout);
     } else if (command == "/exit" || command == "/quit") {
-      std::cout << "bye ✨\n";
+      std::cout << gamma::ui::theme::paint("bye", gamma::ui::theme::Role::Muted) << " "
+                << gamma::ui::theme::paint("✨", gamma::ui::theme::Role::Accent) << "\n";
       return false;
     } else if (command == "/model") {
       if (argument.empty()) {
-        std::cout << "model: " << options_.model << "\n";
+        std::cout << gamma::ui::theme::paint("model: ", gamma::ui::theme::Role::Muted)
+                  << gamma::ui::theme::paint_bold(options_.model, gamma::ui::theme::Role::Highlight) << "\n";
       } else {
         options_.model = argument;
-        std::cout << "model: " << options_.model << " (verify with `ollama list`)\n";
+        std::cout << gamma::ui::theme::paint("model: ", gamma::ui::theme::Role::Muted)
+                  << gamma::ui::theme::paint_bold(options_.model, gamma::ui::theme::Role::Highlight)
+                  << gamma::ui::theme::paint("  (verify with `ollama list`)", gamma::ui::theme::Role::Muted)
+                  << "\n";
       }
     } else if (command == "/mode") {
       if (argument.empty()) {
-        std::cout << mode_line(options_) << "  (choose plan|ask|auto)\n";
+        std::cout << gamma::ui::theme::paint("mode: ", gamma::ui::theme::Role::Muted)
+                  << gamma::ui::theme::paint_bold(gamma::mode_name(options_.mode), gamma::ui::theme::Role::Highlight)
+                  << gamma::ui::theme::paint("  (choose plan|ask|auto)", gamma::ui::theme::Role::Muted) << "\n";
       } else {
         gamma::Mode new_mode = options_.mode;
         if (gamma::parse_mode(argument, new_mode)) {
           options_.mode = new_mode;
-          std::cout << "mode: " << gamma::mode_name(options_.mode) << "\n";
+          std::cout << gamma::ui::theme::paint("mode: ", gamma::ui::theme::Role::Muted)
+                    << gamma::ui::theme::paint_bold(gamma::mode_name(options_.mode), gamma::ui::theme::Role::Highlight)
+                    << "\n";
         } else {
-          std::cout << "  ✗ unknown mode '" << argument << "' (plan|ask|auto)\n";
+          std::cout << "  " << gamma::ui::theme::paint("✗ unknown mode '" + argument + "' (plan|ask|auto)",
+                                                gamma::ui::theme::Role::Error) << "\n";
         }
       }
     } else if (command == "/context") {
       const AgentLoop::Stats snapshot = loop_.stats();
-      std::cout << "messages: " << snapshot.messages << "   ≈tokens: " << snapshot.tokens
-                << "   budget: " << snapshot.budget << "\n";
+      std::cout << gamma::ui::theme::paint("messages: ", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(snapshot.messages), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint("   ≈tokens: ", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(snapshot.tokens), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint("   budget: ", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(snapshot.budget), gamma::ui::theme::Role::Highlight)
+                << "\n";
     } else if (command == "/compact") {
       const bool handled = loop_.compact(true);
       if (!handled) {
-        std::cout << "  (nothing to compact — history already well inside budget)\n";
+        std::cout << "  "
+                  << gamma::ui::theme::paint("(nothing to compact — history already well inside budget)",
+                                      gamma::ui::theme::Role::Muted) << "\n";
       }
     } else if (command == "/clear") {
       loop_.reset_history();
       std::error_code removed;
       std::filesystem::remove(session_file_, removed); // a fresh start stays fresh
-      std::cout << "history cleared (saved session removed).\n";
+      std::cout << gamma::ui::theme::paint("history cleared (saved session removed).",
+                                    gamma::ui::theme::Role::Muted) << "\n";
     } else {
-      std::cout << "  ✗ unknown command '" << command << "'; /help lists them\n";
+      std::cout << "  " << gamma::ui::theme::paint("✗ unknown command '" + command +
+                                            "'; /help lists them",
+                                            gamma::ui::theme::Role::Error) << "\n";
     }
     return true;
   }

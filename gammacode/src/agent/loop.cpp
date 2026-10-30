@@ -1,3 +1,5 @@
+#include "ui/theme.hpp"
+
 #include "agent/loop.hpp"
 
 #include <algorithm>
@@ -85,8 +87,12 @@ bool AgentLoop::compact(bool force) {
   if (trimmed > 0) {
     changed = true;
     total = estimate_history_tokens(history_);
-    std::cout << "  ⏺ compacted: trimmed " << trimmed << " old tool result(s) · ≈" << total
-              << " tokens\n";
+    std::cout << "  " << gamma::ui::theme::paint("⏺ compacted", gamma::ui::theme::Role::Accent)
+              << gamma::ui::theme::paint(": trimmed ", gamma::ui::theme::Role::Muted)
+              << gamma::ui::theme::paint_bold(std::to_string(trimmed), gamma::ui::theme::Role::Highlight)
+              << gamma::ui::theme::paint(" old tool result(s) · ≈", gamma::ui::theme::Role::Muted)
+              << gamma::ui::theme::paint_bold(std::to_string(total), gamma::ui::theme::Role::Highlight)
+              << gamma::ui::theme::paint(" tokens", gamma::ui::theme::Role::Muted) << "\n";
   }
 
   // Tier B: summarize everything except the system prompt and the last few
@@ -125,8 +131,11 @@ bool AgentLoop::compact(bool force) {
       try {
         summary_message = client_.chat(request, [](const std::string&) { return true; });
       } catch (const std::exception& error) {
-        std::cout << "  ✗ compaction summary failed (" << error.what()
-                  << "); only tool results were trimmed.\n";
+        std::cout << "  "
+                  << gamma::ui::theme::paint("✗ compaction summary failed (" + std::string(error.what()) +
+                                          "); only tool results were trimmed.",
+                                      gamma::ui::theme::Role::Error)
+                  << "\n";
         return changed;
       }
     }
@@ -149,8 +158,14 @@ bool AgentLoop::compact(bool force) {
     trim_tool_results(0, 600);
     const long after = estimate_history_tokens(history_);
     changed = true;
-    std::cout << "  ⏺ compacted: " << (history_.size() - 1) << " exchanges summarized · ≈" << before
-              << "→" << after << " tokens\n";
+    std::cout << "  " << gamma::ui::theme::paint("⏺ compacted", gamma::ui::theme::Role::Accent)
+              << gamma::ui::theme::paint(": ", gamma::ui::theme::Role::Muted)
+              << gamma::ui::theme::paint_bold(std::to_string(history_.size() - 1), gamma::ui::theme::Role::Highlight)
+              << gamma::ui::theme::paint(" exchanges summarized · ≈", gamma::ui::theme::Role::Muted)
+              << gamma::ui::theme::paint_bold(std::to_string(before), gamma::ui::theme::Role::Highlight)
+              << gamma::ui::theme::paint("→", gamma::ui::theme::Role::Muted)
+              << gamma::ui::theme::paint_bold(std::to_string(after), gamma::ui::theme::Role::Highlight)
+              << gamma::ui::theme::paint(" tokens", gamma::ui::theme::Role::Muted) << "\n";
   }
   return changed;
 }
@@ -287,8 +302,11 @@ bool AgentLoop::run_turn(const std::string& user_text) {
   std::string last_error;
   for (;;) {
     if (++iterations > kMaxIterations) {
-      std::cout << "  ⚠ per-turn iteration cap (" << kMaxIterations
-                << ") reached; stopping this turn so nothing spins forever.\n";
+      std::cout << "  "
+                << gamma::ui::theme::paint("⚠ per-turn iteration cap (" + std::to_string(kMaxIterations) +
+                                    ") reached; stopping this turn so nothing spins forever.",
+                                    gamma::ui::theme::Role::Warn)
+                << "\n";
       return false;
     }
 
@@ -324,7 +342,9 @@ bool AgentLoop::run_turn(const std::string& user_text) {
         history_.push_back(std::move(note));
         // Same failure repeated: show it the first few times only, cap noise.
         if (error.what() != last_error || iterations <= 3) {
-          std::cout << "  ✗ ollama error: " << error.what() << "\n";
+          std::cout << "  " << gamma::ui::theme::paint("✗ ollama error: " + std::string(error.what()),
+                                                 gamma::ui::theme::Role::Error)
+                    << "\n";
         }
         last_error = error.what();
         continue;
@@ -335,7 +355,11 @@ bool AgentLoop::run_turn(const std::string& user_text) {
       // A stopped response is only a partial thought. Its text stays in
       // history (visible below), but planning a tool call from a truncated
       // stream is unsafe, so NOTHING in it executes.
-      std::cout << "  (output stopped — ESC) · any tool calls in that response were not executed\n";
+      std::cout << "  "
+                << gamma::ui::theme::paint("(output stopped — ESC) · any tool calls in that response "
+                                    "were not executed",
+                                    gamma::ui::theme::Role::Warn)
+                << "\n";
       assistant.tool_calls.clear();
     }
 

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "config/sessions.hpp"
+#include "ui/theme.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -26,16 +27,16 @@ namespace gamma::ui {
 
 namespace {
 
-bool g_colors = false;
+// The launcher is a full-screen TUI: all colors flow through the shared
+// theme (roles), so the palette stays in one place across the app.
+using theme::Role;
 
-std::string wrap(const char* code, const std::string& text) {
-  if (!g_colors) return text;
-  return std::string(code) + text + "\033[0m";
-}
-std::string bold(const std::string& text) { return wrap("\033[1m", text); }
-std::string dim(const std::string& text) { return wrap("\033[90m", text); }
-std::string yellow(const std::string& text) { return wrap("\033[33m", text); }
-std::string bright_cyan(const std::string& text) { return wrap("\033[1;96m", text); }
+std::string bold(const std::string& text) { return theme::paint_bold(text, Role::Highlight); }
+std::string dim(const std::string& text) { return theme::paint(text, Role::Muted); }
+std::string yellow(const std::string& text) { return theme::paint(text, Role::Warn); }
+std::string bright_cyan(const std::string& text) { return theme::paint_bold(text, Role::Accent); }
+std::string accent(const std::string& text) { return theme::paint(text, Role::Accent); }
+std::string faint(const std::string& text) { return theme::paint(text, Role::Faint); }
 
 void clear_view() {
   // Full repaint: home + clear the viewport and — the belt-and-suspenders —
@@ -162,20 +163,22 @@ int menu_engine(const std::string& title,
 
   while (true) {
     clear_view();
-    std::cout << bright_cyan(bold("  " + title)) << "\n\n";
+    // Menu title in the Accent role; the selected row gets a violet ▸ marker
+    // and Highlight text; unselected rows stay Muted against the dark bg.
+    std::cout << "  " << bright_cyan(title) << "\n\n";
     for (std::size_t visible = 0; visible < window; ++visible) {
       const std::size_t index = scroll_top + visible;
       if (index >= rows.size()) break;
       const bool selected = static_cast<int>(index) == highlight;
       if (selected) {
-        std::cout << "  " << yellow("▸") << " " << bold(rows[index]) << "\n";
+        std::cout << "  " << accent("▸") << " " << bold(rows[index]) << "\n";
       } else {
         std::cout << "    " << dim(rows[index]) << "\n";
       }
     }
     if (rows.size() > window) {
-      std::cout << dim("    … " + std::to_string(highlight + 1) + "/" +
-                       std::to_string(rows.size()) + " · ↑/↓ to scroll")
+      std::cout << faint("    … " + std::to_string(highlight + 1) + "/" +
+                         std::to_string(rows.size()) + " · ↑/↓ to scroll")
                 << "\n";
     }
     std::cout << "\n  " << dim(footer) << std::flush;
@@ -243,11 +246,11 @@ bool text_prompt(const char* title, const std::string& initial, std::string& val
     const std::size_t used = columns(shown_left) + 1 + columns(shown_right);
 
     std::cout << "\033[2J\033[H";
-    std::cout << bright_cyan(bold(std::string("  ") + title)) << "\n\n";
-    std::cout << yellow("  ╭" + repeat("─", 72) + "╮") << "\n";
-    std::cout << yellow("  │") << " " << shown_left << bright_cyan("▏") << shown_right
-              << repeat(" ", kBoxWidth - used + 1) << yellow("│") << "\n";
-    std::cout << yellow("  ╰" + repeat("─", 72) + "╯") << "\n";
+    std::cout << "  " << bright_cyan(title) << "\n\n";
+    std::cout << "  " << faint("╭" + repeat("─", 72) + "╮") << "\n";
+    std::cout << "  " << faint("│") << " " << shown_left << accent("▏") << shown_right
+              << repeat(" ", kBoxWidth - used + 1) << faint("│") << "\n";
+    std::cout << "  " << faint("╰" + repeat("─", 72) + "╯") << "\n";
     std::cout << "  "
               << dim("type a folder · ←/→ move · Backspace/Delete · Enter save · Esc cancel")
               << "\n";
@@ -356,13 +359,16 @@ struct AltBuffer {
 };
 
 void print_logo() {
-  std::cout << bright_cyan(R"GNU(
+  // The block-art wordmark carries the Accent role; the tagline sits beneath
+  // in Muted with the version called out in Highlight.
+  std::cout << theme::paint(R"GNU(
    ██████╗  █████╗ ███╗   ███╗███╗   ███╗ █████╗
   ██╔════╝ ██╔══██╗████╗ ████║████╗ ████║██╔══██╗
   ██║  ███╗███████║██╔████╔██║██╔████╔██║███████║
   ██║   ██║██╔══██║██║╚██╔╝██║██║╚██╔╝██║██╔══██╗
   ╚██████╔╝██║  ██║██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║
-   ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝)GNU")
+   ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝)GNU",
+                            Role::Accent)
             << "\n";
   std::cout << "  " << bold("γ Gamma Code " GAMMA_VERSION)
             << dim("   ·   local-only coding agent · Ollama on 127.0.0.1") << "\n\n";
@@ -382,7 +388,8 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
 #endif
   // NOTE: no AltBuffer here — main() enters the alternate screen for the whole
   // interactive session, so the launcher and the REPL share one frame.
-  g_colors = true; // the launcher is a full-screen TUI — colors are the point
+  theme::set_colors(true); // the launcher is a full-screen TUI — colors are the point
+  theme::detect_capabilities();
 
   std::size_t model_index = 0;
   for (std::size_t i = 0; i < ollama_models.size(); ++i) {
@@ -400,9 +407,10 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
     print_logo();
 
     const std::string model_value =
-        options.model + (model_installed ? "" : dim("   (not installed — pick below)"));
+        options.model + (model_installed ? "" : theme::paint("   (not installed — pick below)", Role::Warn));
 
-    // Rows: label + value; the selected row gets a yellow ▸ and bold text.
+    // Rows: label + value; the selected row gets a violet ▌ bar and Highlight
+    // text; unselected rows read as Muted/Faint chrome.
     const std::vector<std::string> value_by_row = {
         model_value,
         mode_row(options),
@@ -411,7 +419,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
             : options.workspace,
         std::to_string(sessions::saved_sessions().size()) + " saved · pick one to resume",
         std::string("gamma's system prompt applies automatically — preview below"),
-        "enter the " + dim("γ ❯") + " REPL",
+        "enter the " + theme::paint("γ ❯", Role::Accent) + " REPL",
         "",
     };
     for (std::size_t i = 0; i < value_by_row.size(); ++i) {
@@ -419,17 +427,17 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
                                               "System prompt", "Start Chat", "Exit"};
       const bool selected = static_cast<int>(i) == highlight;
       if (selected) {
-        std::cout << "  " << yellow("▸") << " " << bold(kLabels[i]) << "   "
-                  << bold(value_by_row[i]) << "\n";
+        std::cout << "  " << accent("▌") << " " << bold(kLabels[i]) << "   "
+                  << theme::paint(value_by_row[i], Role::Highlight) << "\n";
       } else {
-        std::cout << "    " << dim(kLabels[i]) << "   " << dim(value_by_row[i]) << "\n";
+        std::cout << "    " << faint(kLabels[i]) << "   " << dim(value_by_row[i]) << "\n";
       }
     }
 
     std::cout << "\n  " << dim("↑/↓ move · Enter select · N new session · q quit") << "\n\n";
     std::cout << dim("  system prompt applied to every turn:") << "\n";
     for (const std::string& line : wrap_pl(system_prompt_text(), 76)) {
-      std::cout << dim("    " + line) << "\n";
+      std::cout << faint("    " + line) << "\n";
     }
     std::cout.flush();
 
@@ -495,7 +503,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
           return true;
         } else if (highlight == Exit) {
           clear_view();
-          std::cout << dim("  bye ✨") << "\n";
+          std::cout << dim("  bye ") << theme::paint("✨", Role::Accent) << "\n";
           return false;
         }
         break;
@@ -504,7 +512,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
       default:
         if (ch == 'q' || ch == 'Q') {
           clear_view();
-          std::cout << dim("  bye ✨") << "\n";
+          std::cout << dim("  bye ") << theme::paint("✨", Role::Accent) << "\n";
           return false;
         }
         if (ch == 'n' || ch == 'N') {
