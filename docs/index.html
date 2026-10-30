@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gamma Code — local-only terminal coding agent for Windows</title>
-<meta name="description" content="Gamma Code is a local-only, terminal-native AI coding agent for Windows. One .msi installer, no toolchain. Talks only to Ollama on 127.0.0.1 — no cloud, no API keys, no telemetry.">
+<meta name="description" content="Gamma Code is a local-only, terminal-native AI coding agent for Windows. One installer, no toolchain. Talks only to Ollama on 127.0.0.1 — no cloud, no API keys, no telemetry.">
 <meta property="og:title" content="Gamma Code — local-only terminal coding agent for Windows">
-<meta property="og:description" content="No cloud, no keys, no telemetry. Ollama on 127.0.0.1, edits with diff review, grep/glob/run, survives long sessions. One .msi, no C++ toolchain.">
+<meta property="og:description" content="No cloud, no keys, no telemetry. Ollama on 127.0.0.1, edits with diff review, grep/glob/run, survives long sessions. One install, no C++ toolchain.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/main.js" defer></script>
@@ -38,7 +38,7 @@
   <section class="hero" aria-label="Introduction">
     <div class="hero-copy">
       <h1>A local-only coding agent that lives in Windows&nbsp;Terminal.</h1>
-      <p class="subline">One .msi installer. No toolchain. Ollama on 127.0.0.1. No cloud, no keys, no telemetry.</p>
+      <p class="subline">One installer. No toolchain. Ollama on 127.0.0.1. No cloud, no keys, no telemetry.</p>
       <div class="cta-row">
         <a class="btn primary" href="#install">Download for Windows</a>
         <a class="btn ghost" href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">View source</a>
@@ -153,12 +153,12 @@ stderr: (empty)</code></pre>
   <!-- ──────────────────────────── install ──────────────────────────── -->
   <section id="install" aria-label="Install">
     <h2>Install</h2>
-    <p class="section-sub">One .msi. No C++ toolchain, CMake, or Visual Studio required.</p>
+    <p class="section-sub">One installer. No C++ toolchain, CMake, or Visual Studio required.</p>
 
     <div class="tabs" role="tablist" aria-label="Install method">
       <button role="tab" id="tab-ps1" aria-selected="true" aria-controls="panel-ps1">PowerShell</button>
       <button role="tab" id="tab-winget" aria-selected="false" aria-controls="panel-winget" tabindex="-1">Winget</button>
-      <button role="tab" id="tab-msi" aria-selected="false" aria-controls="panel-msi" tabindex="-1">.msi</button>
+      <button role="tab" id="tab-msi" aria-selected="false" aria-controls="panel-msi" tabindex="-1">Setup</button>
     </div>
 
     <div role="tabpanel" id="panel-ps1" aria-labelledby="tab-ps1">
@@ -176,8 +176,8 @@ stderr: (empty)</code></pre>
     </div>
 
     <div role="tabpanel" id="panel-msi" aria-labelledby="tab-msi" hidden>
-      <a class="btn primary" href="https://github.com/zstudio-lab/Gamma-Code/releases" rel="noopener">Download .msi</a>
-      <p class="note">The .msi verifies the binary's SHA-256 against a checksum embedded in the installer. Trust comes from the source: it lives in this repository.</p>
+      <a class="btn primary" href="https://github.com/zstudio-lab/Gamma-Code/releases" rel="noopener">Download installer</a>
+      <p class="note">The installer verifies the binary's SHA-256 against a checksum embedded in it. Trust comes from the source: it lives in this repository.</p>
     </div>
 
     <div class="cmdblock postinstall">

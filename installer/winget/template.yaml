@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.10.0.schema.json
+PackageIdentifier: GammaCode.Gamma
+PackageVersion: %VERSION%
+PackageLocale: en-US
+Publisher: ZStudio-lab
+PublisherUrl: https://github.com/ZStudio-lab
+PublisherSupportUrl: https://github.com/ZStudio-lab/Gamma-Code/issues
+Author: ZStudio-lab
+PackageName: Gamma Code
+PackageUrl: https://github.com/ZStudio-lab/Gamma-Code
+License: MIT
+LicenseUrl: https://github.com/ZStudio-lab/Gamma-Code/blob/main/LICENSE
+ShortDescription: Local-only, terminal-native AI coding agent for Windows.
+Description: |-
+  Gamma Code is a local-only, terminal-native AI coding agent for Windows.
+  It talks only to Ollama on 127.0.0.1:11434 - no cloud, no API keys, no
+  telemetry. Not the prompt, not the code, not the conversation ever leaves
+  the machine. Tools: read_file, write_file/edit_file (unified diff before
+  write, exact-match replacement), glob/grep, run_command (cmd.exe /c or
+  PowerShell via --shell psh), ask_user, and tiered context compaction for
+  long sessions. Permission modes: plan (read-only), ask (default - writes
+  and commands prompt y/N with the diff or command shown), auto (run_command
+  still prompts unless --yolo). Ollama itself is not bundled.
+Moniker: gamma
+Tags:
+  - windows
+  - cli
+  - ai-agent
+  - ollama
+  - local-first
+  - terminal
+ReleaseNotesUrl: https://github.com/ZStudio-lab/Gamma-Code/releases/tag/v%VERSION%
+Installers:
+  - Architecture: x64
+    InstallerType: inno
+    InstallerUrl: https://github.com/ZStudio-lab/Gamma-Code/releases/download/v%VERSION%/Gamma-%VERSION%-setup.exe
+    InstallerSha256: %SETUPSHA%
+    InstallerSwitches:
+      Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+      SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART
+    UpgradeBehavior: install
+ManifestType: singleton
+ManifestVersion: 1.10.0

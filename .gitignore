@@ -11,6 +11,10 @@ build/
 gsmoke/
 *.gamma-tmp*
 
+# Installer build artifacts (regenerate with installer/build-installer.ps1)
+installer/staging/
+installer/out/
+
 # Editors / OS noise
 .vs/
 .vscode/

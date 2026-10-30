@@ -58,8 +58,9 @@ starts a new session; `/help` lists slash commands.
 
 ## Install
 
-Prebuilt `.msi` and a PowerShell one-liner are on the way — see the
-[website](https://zstudio-lab.github.io/Gamma-Code/). Meanwhile, build from
+Prebuilt installer (Inno Setup) and a PowerShell one-liner live in
+[Releases](https://github.com/ZStudio-lab/Gamma-Code/releases); the site's
+PowerShell path verifies the binary's SHA-256 before installing. To build from
 source:
 
 ```powershell
