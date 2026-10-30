@@ -1,0 +1,11 @@
+build/
+_build/
+cmake-build-*/
+build-*/
+/out/
+*.obj
+*.exe
+*.pdb
+*.ilk
+compile_commands.json
+.cache/

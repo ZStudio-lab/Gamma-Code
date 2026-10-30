@@ -1,0 +1,23 @@
+// gamma.exe Windows resources — compiled into the binary so Explorer, the
+// taskbar, and the console window show Gamma's icon (first ICON resource wins).
+1 ICON "assets\\Gamma.ico"
+
+1 VERSIONINFO
+FILEVERSION     0,1,0,0
+PRODUCTVERSION  0,1,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "FileDescription", "Gamma Code - local-only coding agent"
+      VALUE "FileVersion",     "0.1.0"
+      VALUE "ProductName",     "Gamma Code"
+      VALUE "ProductVersion",  "0.1.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

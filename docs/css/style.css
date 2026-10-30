@@ -1,0 +1,224 @@
+/* gamma code — windows-terminal aesthetic */
+:root {
+  --bg: #0c0c0c;
+  --panel: #111111;
+  --text: #cccccc;
+  --muted: #8a8a8a;   /* body-copy muted, ≥4.5:1 on --bg */
+  --dim: #767676;     /* decorative only */
+  --line: #2b2b2b;
+  --accent: #3b78ff;  /* borders, fills */
+  --accent-text: #7aa7ff; /* accent as text, ≥4.5:1 on --bg */
+  --green: #13a10e;
+  --amber: #f9f1a5;
+  --font: 'Cascadia Code', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  padding: 0 20px;
+}
+
+a { color: var(--accent-text); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+p code, li code { color: var(--accent-text); }
+
+.skip {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--accent); color: #fff; padding: 6px 12px;
+}
+.skip:focus { left: 8px; top: 8px; z-index: 10; }
+
+/* ───────────── header ───────────── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 0 26px;
+}
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); }
+.brand:hover { text-decoration: none; }
+.logo { width: 26px; height: 26px; color: var(--text); }
+.logo-sm { width: 14px; height: 14px; flex: none; }
+.wordmark { font-size: 17px; font-weight: 600; letter-spacing: 0.5px; }
+.pill {
+  border: 1px solid var(--line); color: var(--muted);
+  font-size: 11px; padding: 1px 8px; border-radius: 999px;
+}
+.pill-amber { color: var(--amber); }
+nav { display: flex; gap: 22px; }
+nav a { color: var(--muted); font-size: 14px; }
+nav a:hover { color: var(--text); }
+
+/* ───────────── hero ───────────── */
+.hero {
+  display: flex; gap: 48px; align-items: center;
+  padding: 34px 0 44px;
+}
+.hero-copy { flex: 1 1 320px; min-width: 260px; }
+h1 { font-size: clamp(24px, 3.4vw, 38px); font-weight: 600; line-height: 1.25; }
+.subline { color: var(--muted); margin-top: 14px; font-size: 15px; }
+.cta-row { display: flex; gap: 14px; margin-top: 26px; flex-wrap: wrap; }
+.btn {
+  display: inline-block; padding: 10px 18px; font-family: inherit; font-size: 15px;
+  border: 1px solid var(--line); color: var(--text); cursor: pointer;
+}
+.btn:hover { text-decoration: none; border-color: var(--dim); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.primary:hover { background: #2f66e0; border-color: #2f66e0; }
+.btn.ghost { color: var(--accent-text); }
+
+/* fake windows terminal */
+.term {
+  flex: 1 1 460px; min-width: 0;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); overflow: hidden;
+}
+.term-bar {
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 10px; font-size: 12px; color: var(--muted);
+}
+.term-menu { color: var(--dim); }
+.term-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); border-bottom: none;
+  border-radius: 6px 6px 0 0; padding: 3px 12px; color: var(--text);
+}
+.term-plus { color: var(--dim); }
+.term-gap { flex: 1; }
+.term-win { color: var(--dim); letter-spacing: 4px; }
+.term-body {
+  padding: 14px 16px 18px; overflow-x: auto;
+  font-size: 13.5px; white-space: pre; line-height: 1.7;
+}
+.tline { min-width: max-content; }
+.add-tick::before { content: "⏺ "; color: var(--accent); }
+.block-cursor { display: inline-block; width: 8px; height: 1.1em; background: var(--text); vertical-align: text-bottom; }
+.caret-g { color: var(--green); }
+.tick { color: var(--accent); }
+.green { color: #2ea321; }
+.exchange { opacity: 0; transition: opacity 0.2s; }
+.exchange.on { opacity: 1; }
+
+/* ───────────── banner ───────────── */
+.banner {
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  background: var(--panel); padding: 16px 20px; font-size: 15px;
+}
+.banner strong { color: #fff; }
+
+/* ───────────── sections ───────────── */
+section:not(.hero, .banner) { padding: 56px 0 10px; }
+h2 { font-size: 22px; font-weight: 600; }
+.section-sub { color: var(--muted); margin-top: 8px; font-size: 14px; }
+.grid { display: grid; gap: 18px; margin-top: 24px; }
+.grid.three { grid-template-columns: 1fr; }     /* <720: single column */
+@media (min-width: 720px) { .grid.three { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1024px) { .grid.three { grid-template-columns: 1fr 1fr 1fr; } }
+
+.card {
+  border: 1px solid var(--line); background: var(--panel);
+  padding: 18px 20px; font-size: 14px;
+}
+.card h3 { font-size: 16px; font-weight: 600; }
+.card p { margin-top: 8px; color: var(--muted); }
+.toolname {
+  display: inline-block; color: var(--accent-text);
+  border: 1px solid var(--line); padding: 1px 8px; margin-right: 6px;
+  font-size: 13px;
+}
+.card pre {
+  margin-top: 14px; border: 1px solid var(--line); background: #0a0a0a;
+  padding: 10px 12px; overflow-x: auto; font-size: 12.5px; color: var(--muted);
+  font-family: inherit; white-space: pre; min-width: max-content;
+}
+.card pre .diff { display: block; }
+.card code.diff { color: var(--text); }
+
+/* safety cards */
+.mode.default { border-color: var(--accent); }
+.mode ul { margin: 10px 0 0 16px; color: var(--muted); }
+.mode li { margin-top: 4px; }
+.mode-desc { color: var(--text) !important; }
+
+/* ───────────── install ───────────── */
+.tabs {
+  display: flex; gap: 2px; margin-top: 22px; border-bottom: 1px solid var(--line);
+  overflow-x: auto; max-width: 560px;
+}
+.tabs [role="tab"] {
+  font-family: inherit; font-size: 14px; color: var(--muted);
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  padding: 9px 16px; cursor: pointer; white-space: nowrap;
+}
+.tabs [role="tab"][aria-selected="true"] {
+  color: var(--text); border-bottom-color: var(--accent);
+}
+.cmdblock {
+  position: relative; border: 1px solid var(--line); background: #0a0a0a;
+  margin-top: 18px; max-width: 760px;
+}
+.cmdblock pre {
+  padding: 14px 90px 14px 14px; overflow-x: auto; font-size: 13.5px; color: var(--text);
+  white-space: pre; min-width: max-content;
+}
+.cmdblock .copybtn {
+  position: absolute; top: 8px; right: 8px;
+  font-family: inherit; font-size: 12px; cursor: pointer;
+  background: var(--panel); color: var(--muted);
+  border: 1px solid var(--line); padding: 4px 10px;
+}
+.cmdblock .copybtn:hover { color: var(--text); border-color: var(--dim); }
+.copybtn.copied { color: #2ea321; border-color: #2ea321; }
+.copied-note { margin-left: 0; }
+.postinstall { padding-bottom: 4px; }
+.block-label {
+  font-size: 11px; color: var(--dim); letter-spacing: 1px;
+  text-transform: uppercase; padding: 10px 14px 0; margin: 0;
+}
+.postinstall pre { padding-top: 6px; }
+.note { color: var(--muted); font-size: 13px; margin-top: 12px; }
+.smartscreen { border: 1px solid var(--line); max-width: 760px; margin-top: 18px; }
+.smartscreen summary { cursor: pointer; padding: 10px 14px; color: var(--amber); font-size: 13px; }
+.smartscreen p { padding: 0 14px 12px; color: var(--muted); font-size: 13px; }
+
+/* ───────────── how it works ───────────── */
+.diagram {
+  display: flex; gap: 18px; margin-top: 24px; flex-wrap: wrap;
+  font-size: 13px; color: var(--muted);
+}
+.diagram > div { min-width: 200px; }
+.node {
+  display: inline-block; border: 1px solid var(--line); padding: 6px 14px;
+  color: var(--text); background: var(--panel);
+}
+.node.harness { border-color: var(--accent); color: var(--accent-text); }
+.dflow { font-family: inherit; margin-top: 8px; line-height: 1.4; }
+.dflow.wide { min-width: max-content; }
+
+/* ───────────── footer ───────────── */
+footer {
+  border-top: 1px solid var(--line); margin-top: 64px;
+  padding: 26px 0 40px; font-size: 13px; color: var(--muted);
+}
+footer .dim { color: var(--dim); margin-top: 6px; }
+
+/* ───────────── narrow screens ───────────── */
+@media (max-width: 1019px) {
+  .hero { flex-direction: column; align-items: stretch; gap: 32px; }
+}
+@media (max-width: 760px) {
+  header { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .cmdblock pre { padding-right: 14px; padding-bottom: 44px; }
+  .cmdblock .copybtn { top: auto; bottom: 8px; left: 8px; right: auto; }
+}

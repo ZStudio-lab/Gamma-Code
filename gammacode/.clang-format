@@ -1,0 +1,22 @@
+---
+# gamma (Gamma Code) formatting rules — C++20, 2-space indent, 100 cols.
+BasedOnStyle: LLVM
+Language: Cpp
+ColumnLimit: 100
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+Standard: c++20
+PointerAlignment: Left
+DerivePointerAlignment: false
+AccessModifierOffset: -2
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBraces: Attach
+ConstructorInitializerIndentWidth: 4
+FixNamespaceComments: true
+InsertNewlineAtEOF: true
+NamespaceIndentation: None
+SortIncludes: CaseSensitive
+SpacesBeforeTrailingComments: 1

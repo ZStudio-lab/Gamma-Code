@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gamma Code — local-only terminal coding agent for Windows</title>
+<meta name="description" content="Gamma Code is a local-only, terminal-native AI coding agent for Windows. One .msi installer, no toolchain. Talks only to Ollama on 127.0.0.1 — no cloud, no API keys, no telemetry.">
+<meta property="og:title" content="Gamma Code — local-only terminal coding agent for Windows">
+<meta property="og:description" content="No cloud, no keys, no telemetry. Ollama on 127.0.0.1, edits with diff review, grep/glob/run, survives long sessions. One .msi, no C++ toolchain.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/main.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header aria-label="Site header">
+  <a class="brand" href="#main" aria-label="Gamma Code home">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <path d="M4 8 L11 16 L4 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+      <path d="M23 4 L29 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+      <path d="M13 13 L17 18 L13 23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/>
+    </svg>
+    <span class="wordmark">gamma</span>
+    <span class="pill">Windows</span>
+  </a>
+  <nav aria-label="Main">
+    <a href="#features">Features</a>
+    <a href="#safety">Safety</a>
+    <a href="#install">Install</a>
+    <a href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- ───────────────────────────── hero ───────────────────────────── -->
+  <section class="hero" aria-label="Introduction">
+    <div class="hero-copy">
+      <h1>A local-only coding agent that lives in Windows&nbsp;Terminal.</h1>
+      <p class="subline">One .msi installer. No toolchain. Ollama on 127.0.0.1. No cloud, no keys, no telemetry.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="#install">Download for Windows</a>
+        <a class="btn ghost" href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">View source</a>
+      </div>
+    </div>
+
+    <div class="term" role="img" aria-label="Mock Windows Terminal window running gamma">
+      <div class="term-bar" aria-hidden="true">
+        <span class="term-menu">⋯</span>
+        <span class="term-tab active"><svg class="logo logo-sm" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 8 L11 16 L4 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"/><path d="M23 4 L29 28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"/><path d="M13 13 L17 18 L13 23" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/></svg>gamma — PowerShell</span>
+        <span class="term-plus">＋</span>
+        <span class="term-gap"></span>
+        <span class="term-win">─ □ ✕</span>
+      </div>
+      <div class="term-body" tabindex="0">
+        <div class="tline">PS C:\&gt; <span class="caret-g">γ ❯</span> <span id="typed" data-text="find every call to User::save() and list the files"></span><span class="block-cursor" aria-hidden="true"></span></div>
+        <div class="tline exchange"><span class="tick">⏺</span> grep(pattern=User::save)</div>
+        <div class="tline dim exchange">└ src\models\user.cpp:41:   this-&gt;save();</div>
+        <div class="tline dim exchange">└ src\ui\dialogs.cpp:112:   user.save();</div>
+        <div class="tline dim exchange">└ src\services\sync.cpp:58: profile.save();</div>
+        <div class="tline exchange"><span class="tick">⏺</span> <span class="green">3 call sites in 3 files.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── local-only banner ─────────────────────── -->
+  <section class="banner" aria-label="Local-only guarantee">
+    <p><strong>Nothing leaves your machine.</strong> Not the prompt, not the code, not the conversation.
+    The installer makes no network calls beyond the download itself.</p>
+  </section>
+
+  <!-- ─────────────────────────── features ─────────────────────────── -->
+  <section id="features" aria-label="Features">
+    <h2>What the tools do</h2>
+    <div class="grid three">
+      <article class="card">
+        <code class="toolname">read_file</code>
+        <p>Numbered lines. Files past 2,000 lines split into head + tail with a hint to request the range you need.</p>
+<pre><code>&gt; read_file src\main.cpp
+1: #include &lt;Windows.h&gt;
+2: int WINAPI wWinMain(…
+  … (+1,842 lines — request a line range)</code></pre>
+      </article>
+      <article class="card">
+        <code class="toolname">edit_file</code>
+        <p>Exact-match replacement. Ambiguous or missing matches are refused, never guessed. Every change shows a unified diff before it is written.</p>
+<pre><code class="diff">@@ -14,6 +14,7 @@
+-  user.save();
++  user.save_async();</code></pre>
+      </article>
+      <article class="card">
+        <code class="toolname">glob</code> <code class="toolname">grep</code>
+        <p>Paths by pattern; regex over file contents. Capped at 200 hits, reported as <code>file:line: text</code>.</p>
+<pre><code>&gt; grep pattern="TODO" glob="*.cpp"
+src\models\user.cpp:17: TODO: debounce
+src\ui\dialogs.cpp:44: TODO: i18n</code></pre>
+      </article>
+      <article class="card">
+        <code class="toolname">run_command</code>
+        <p>Executes via <code>cmd.exe /c</code> — or PowerShell with <code>--shell psh</code> — 60-second timeout, stdout and stderr captured separately.</p>
+<pre><code>&gt; run_command cmd="cargo test"
+stdout: 31 passed; 0 failed
+stderr: (empty)</code></pre>
+      </article>
+      <article class="card">
+        <code class="toolname">ask_user</code>
+        <p>The model pauses and asks you directly when it needs something no file contains — a preference, a credential path, a decision.</p>
+<pre><code>ask: "Which branch should I
+      rebase onto — main or next?"</code></pre>
+      </article>
+      <article class="card">
+        <code class="toolname">compaction</code>
+        <p>Survives long sessions. Tiered: truncate old tool output → summarize old turns → hard-drop oldest. Never interrupts a tool call mid-flight.</p>
+<pre><code>⏺ compacted: 27 exchanges summarized
+  ≈61,000 → 9,400 tokens</code></pre>
+      </article>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────── safety ──────────────────────────── -->
+  <section id="safety" aria-label="Permission modes">
+    <h2>Permission modes</h2>
+    <p class="section-sub">You decide what runs without being asked.</p>
+    <div class="grid three modes">
+      <article class="card mode">
+        <h3>plan</h3>
+        <p class="mode-desc">Read-only.</p>
+        <ul>
+          <li>reads, search, listing: allowed</li>
+          <li>writes and commands: denied with an explanatory tool error</li>
+        </ul>
+      </article>
+      <article class="card mode default">
+        <h3>ask <span class="pill pill-amber">default</span></h3>
+        <p class="mode-desc">Reads are free. Mutations show first.</p>
+        <ul>
+          <li>reads, search, listing: auto-approved</li>
+          <li>writes, edits, shell commands: <code>y/N</code> prompt with the full diff or command shown</li>
+        </ul>
+      </article>
+      <article class="card mode">
+        <h3>auto</h3>
+        <p class="mode-desc">Hands-free, with a floor.</p>
+        <ul>
+          <li>reads, writes, edits: auto-approved</li>
+          <li><code>run_command</code>: still prompts, unless <code>--yolo</code></li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────── install ──────────────────────────── -->
+  <section id="install" aria-label="Install">
+    <h2>Install</h2>
+    <p class="section-sub">One .msi. No C++ toolchain, CMake, or Visual Studio required.</p>
+
+    <div class="tabs" role="tablist" aria-label="Install method">
+      <button role="tab" id="tab-ps1" aria-selected="true" aria-controls="panel-ps1">PowerShell</button>
+      <button role="tab" id="tab-winget" aria-selected="false" aria-controls="panel-winget" tabindex="-1">Winget</button>
+      <button role="tab" id="tab-msi" aria-selected="false" aria-controls="panel-msi" tabindex="-1">.msi</button>
+    </div>
+
+    <div role="tabpanel" id="panel-ps1" aria-labelledby="tab-ps1">
+      <div class="cmdblock">
+        <pre><code id="cmd-ps1">irm https://zstudio-lab.github.io/Gamma-Code/install.ps1 | iex</code></pre>
+        <button class="copybtn" data-copy="irm https://zstudio-lab.github.io/Gamma-Code/install.ps1 | iex"><span>copy</span><span role="status" class="copied-note"></span></button>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="panel-winget" aria-labelledby="tab-winget" hidden>
+      <div class="cmdblock">
+        <pre><code id="cmd-winget">winget install GammaCode.Gamma</code></pre>
+        <button class="copybtn" data-copy="winget install GammaCode.Gamma"><span>copy</span><span role="status" class="copied-note"></span></button>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="panel-msi" aria-labelledby="tab-msi" hidden>
+      <a class="btn primary" href="https://github.com/zstudio-lab/Gamma-Code/releases" rel="noopener">Download .msi</a>
+      <p class="note">The .msi verifies the binary's SHA-256 against a checksum embedded in the installer. Trust comes from the source: it lives in this repository.</p>
+    </div>
+
+    <div class="cmdblock postinstall">
+      <p class="block-label">after install — one-time:</p>
+      <pre><code>ollama pull qwen2.5-coder:7b
+gamma</code></pre>
+      <button class="copybtn" data-copy="ollama pull qwen2.5-coder:7b&#10;gamma"><span>copy</span><span role="status" class="copied-note"></span></button>
+    </div>
+    <p class="note">One-shot instead? <code>gamma -p "explain main.cpp"</code> answers without entering the <code>γ ❯</code> REPL.</p>
+
+    <p class="note">Gamma does not bundle Ollama; install it separately from
+      <a href="https://ollama.com/download/windows" rel="noopener">ollama.com/download/windows</a>.</p>
+    <p class="note">Installs to <code>%LOCALAPPDATA%\Programs\GammaCode\</code> and adds it to your user PATH.
+      No C++ toolchain, CMake, or Visual Studio required.</p>
+
+    <details class="smartscreen">
+      <summary>If Windows SmartScreen warns about the installer</summary>
+      <p>Click <strong>More info → Run anyway</strong>. Gamma is an unsigned open-source binary —
+      SmartScreen flags any installer it has no download reputation for. If you'd rather not click
+      through the warning, use the PowerShell or Winget path instead, or verify the binary's SHA-256
+      against the value published alongside each release.</p>
+    </details>
+  </section>
+
+  <!-- ────────────────────── how it works ────────────────────── -->
+  <section id="how" aria-label="How it works">
+    <h2>How it works</h2>
+    <div class="diagram" role="img" aria-label="You send a task to the gamma harness, which mediates tools and permissions and talks to the local model; tool results loop back through the harness">
+      <div><span class="node">you</span><pre class="dflow">   type a task
+        │
+        ▼</pre></div>
+      <div><span class="node harness">gamma.exe</span><pre class="dflow wide">tools · permissions
+ · turn loop
+ ·  compaction
+        │ ▲
+ results │ │ next
+        ▼ │</pre></div>
+      <div><span class="node">model</span><pre class="dflow">ollama on
+127.0.0.1
+   │
+   ▼</pre></div>
+    </div>
+  </section>
+
+</main>
+
+<footer aria-label="Site footer">
+  <p>gamma 0.1.0 · MIT · Windows 10 22H2+ / Windows 11 · <a href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">source</a></p>
+  <p class="dim">Built for people who don't want their code on someone else's server.</p>
+</footer>
+</body>
+</html>

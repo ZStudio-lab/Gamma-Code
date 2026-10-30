@@ -1,0 +1,19 @@
+# Build output
+gammacode/build/
+gammacode/build-*/
+build/
+*.exe
+*.obj
+*.lib
+*.dll
+
+# Test workspaces / local scratch
+gsmoke/
+*.gamma-tmp*
+
+# Editors / OS noise
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
