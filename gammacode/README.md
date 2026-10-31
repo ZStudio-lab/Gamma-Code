@@ -8,7 +8,7 @@ the machine's RAM/VRAM, starts `ollama serve`, and thereafter uses the newest
 installed tool-capable model. Handles long files via line-ranged reads and tiered
 context compaction.
 
-Binary: `gamma` · Namespace: `gamma` · Version: 0.1.1
+Binary: `gamma` · Namespace: `gamma` · Version: 0.1.2
 
 <!-- README fully fleshed out in step 5: local-only guarantee, build steps,
      permission modes, compaction strategy with a long-file example. -->

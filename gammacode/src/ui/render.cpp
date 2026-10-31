@@ -222,7 +222,7 @@ void init_terminal() {
   DWORD mode = 0;
   if (out != INVALID_HANDLE_VALUE && GetConsoleMode(out, &mode)) {
     SetConsoleMode(out, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-    SetConsoleOutputCP(65001); // UTF-8 for γ, ✻, ⏺
+    SetConsoleOutputCP(65001); // UTF-8 for γ, ►, box drawing
   }
   // Own the console window: remember its original title, then name the
   // window after us (the embedded icon covers the taskbar/Explorer).
@@ -312,7 +312,7 @@ void print_tool_call(const std::string& name, const nlohmann::json& arguments) {
   // The window title mirrors execution, not just streaming.
   set_status_title(tool_verb(name) ? std::string(tool_verb(name)) : "running " + name + "…");
   const std::string summary = summarize_arguments(arguments);
-  std::cout << "  " << theme::paint("⏺", Role::Accent) << " "
+  std::cout << "  " << theme::paint("►", Role::Accent) << " "
             << theme::paint_bold(name, Role::Highlight);
   if (!summary.empty()) std::cout << dim("(" + summary + ")");
   std::cout << "\n";
@@ -356,6 +356,56 @@ bool ask_yes_no(const std::string& proposal) {
   std::string answer;
   if (!std::getline(std::cin, answer)) return false; // EOF ⇒ no
   return !answer.empty() && (answer[0] == 'y' || answer[0] == 'Y');
+}
+
+UserAnswer ask_user_question(const std::string& question,
+                             const std::vector<std::string>& options) {
+  const std::vector<std::string> lines = split_lines(question);
+  std::cout << "\n";
+  std::cout << theme::frame_titled("question", Role::Accent, lines) << "\n";
+
+  std::string answer;
+  if (options.empty()) {
+    std::cout << "  " << cyan("answer") << dim("  ❯ ") << std::flush;
+    if (!std::getline(std::cin, answer)) return {}; // EOF: nobody to answer
+  } else {
+    for (std::size_t i = 0; i < options.size(); ++i) {
+      std::cout << "  " << theme::paint(std::to_string(i + 1) + ".", Role::Faint) << " "
+                << options[i] << "\n";
+    }
+    std::cout << "  " << cyan("pick") << dim("  [1-" + std::to_string(options.size()) +
+                                             ", Enter = 1] ")
+              << std::flush;
+    if (!std::getline(std::cin, answer)) return {}; // EOF: nobody to answer
+    std::string pick = answer;
+    const char* spaces = " \t\r\n";
+    pick.erase(0, pick.find_first_not_of(spaces));
+    pick.erase(pick.find_last_not_of(spaces) + 1);
+    if (pick.empty()) {
+      answer = options.front();
+    } else if (pick.size() <= 2 && pick.find_first_not_of("0123456789") == std::string::npos) {
+      const long index = std::strtol(pick.c_str(), nullptr, 10);
+      if (index >= 1 && index <= static_cast<long>(options.size()))
+        answer = options[static_cast<std::size_t>(index) - 1];
+      else
+        answer = pick;
+    } else {
+      // Exact-text pick: accept an option spelled out in full.
+      for (const std::string& option : options) {
+        if (option == pick) {
+          answer = option;
+          break;
+        }
+      }
+      if (answer.empty()) answer = pick; // free-form beyond the listed options
+    }
+  }
+
+  while (!answer.empty() && (answer.back() == '\r' || answer.back() == '\n')) answer.pop_back();
+  std::cout << "  " << theme::paint("»", Role::Faint) << " "
+            << theme::paint(answer, Role::Highlight) << "\n"
+            << std::flush;
+  return UserAnswer{true, answer};
 }
 
 std::string proposal_text(const std::string& tool_name, const nlohmann::json& arguments) {
@@ -432,6 +482,8 @@ const char* tool_verb(const std::string& name) {
       {"glob", "searching filenames…"},
       {"grep", "searching text…"},
       {"run_command", "running a command…"},
+      {"ask", "waiting for your answer…"},
+      {"web_search", "searching the web…"},
   };
   for (const Verb& verb : kVerbs) {
     if (name == verb.name) return verb.label;
@@ -491,7 +543,7 @@ void Spinner::start() {
   const auto started = std::chrono::steady_clock::now();
   thread_ = std::thread(
       [](Spinner* self, std::chrono::steady_clock::time_point begin) {
-        static constexpr const char* kFrames[4] = {"✻", "✦", "✶", "✷"};
+        static constexpr const char* kFrames[4] = {"▖", "▘", "▝", "▗"};
         int frame = 0;
         while (self->spinning_.load()) {
           long long seconds =

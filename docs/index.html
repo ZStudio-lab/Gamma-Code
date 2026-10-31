@@ -56,8 +56,8 @@
         <a class="btn primary" href="#install">Download for Windows</a>
         <a class="btn ghost" href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">View source</a>
       </div>
-      <p class="release-line"><span class="pill pill-amber">v0.1.1</span>
-        <a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.1" rel="noopener">latest release</a>
+      <p class="release-line"><span class="pill pill-amber">v0.1.2</span>
+        <a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.2" rel="noopener">latest release</a>
         <span class="dim">· MIT · Windows 10 22H2+ / 11</span></p>
       <ul class="hero-facts" aria-label="Key facts">
         <li><span class="fact-n">7</span> tools — read, write, edit, list, glob, grep, run</li>
@@ -90,14 +90,14 @@
   </section>
 
   <!-- ─────────────────────── release highlights ─────────────────────── -->
-  <div class="release-strip" aria-label="Highlights in v0.1.1">
-    <span class="release-tag">v0.1.1</span>
+  <div class="release-strip" aria-label="Highlights in v0.1.2">
+    <span class="release-tag">v0.1.2</span>
     <ul>
+      <li><b>Hardened tools</b> — gitignore-aware scans, tolerant edits, capped reads</li>
       <li><b>Live streaming</b> — prose appears as the model writes it</li>
       <li><b>Auto Ollama</b> — detects, installs, pulls by hardware</li>
-      <li><b>Full restore</b> — sessions keep tool calls and results</li>
     </ul>
-    <a class="release-link" href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.1" rel="noopener">release notes →</a>
+    <a class="release-link" href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.2" rel="noopener">release notes →</a>
   </div>
 
   <!-- ─────────────────────────── features ─────────────────────────── -->
@@ -117,7 +117,7 @@
       </article>
       <article class="card">
         <h3 class="card-title"><code class="toolname">write_file</code> <code class="toolname">edit_file</code></h3>
-        <p>Create, overwrite, or replace an exact-match region. Ambiguous or missing matches are refused, never guessed.
+        <p>Create, overwrite, or replace an exact-match region. Matching tolerates CRLF/LF and indentation drift, with a block-anchor fallback for minor content drift; <code>replace_all</code> handles repeated hits, and ambiguity is refused, never guessed.
           In <code>ask</code> mode every write and edit shows a unified diff before it lands.</p>
 <pre><code class="diff">@@ -14,6 +14,7 @@
 -  user.save();
@@ -125,7 +125,7 @@
       </article>
       <article class="card">
         <h3 class="card-title"><code class="toolname">list_dir</code> <code class="toolname">glob</code> <code class="toolname">grep</code></h3>
-        <p>Folders, path patterns, and regex over contents. Results are capped — 500 paths, 200 hits — and grep hits come back as <code>file:line: text</code> so they are jumpable.</p>
+        <p>Folders, path patterns, and regex over contents. Scans honor the root <code>.gitignore</code> and skip VCS/dependency folders; binaries are never read. Results are capped — 500 paths, 200 hits (50 per file) — and grep hits come back as <code>file:line: text</code> so they are jumpable.</p>
 <pre><code>&gt; grep pattern="TODO" glob="*.cpp"
 src\models\user.cpp:17: TODO: debounce
 src\ui\dialogs.cpp:44: TODO: i18n</code></pre>
@@ -283,10 +283,14 @@ stderr: (empty)</code></pre>
 
     <div role="tabpanel" id="panel-winget" aria-labelledby="tab-winget" hidden>
       <div class="cmdblock">
-        <pre><code id="cmd-winget">winget install GammaCode.Gamma</code></pre>
-        <button class="copybtn" data-copy="winget install GammaCode.Gamma"><span>copy</span><span role="status" class="copied-note"></span></button>
+        <pre><code id="cmd-winget">$v = "0.1.2"
+irm "https://raw.githubusercontent.com/ZStudio-lab/Gamma-Code/main/installer/winget/manifest/G/GammaCode/GammaCode.Gamma/$v/GammaCode.Gamma.yaml" -OutFile "$env:TEMP\GammaCode.Gamma.yaml"
+winget install --manifest "$env:TEMP\GammaCode.Gamma.yaml" --accept-package-agreements --accept-source-agreements</code></pre>
+        <button class="copybtn" data-copy='$v = "0.1.2"
+irm "https://raw.githubusercontent.com/ZStudio-lab/Gamma-Code/main/installer/winget/manifest/G/GammaCode/GammaCode.Gamma/$v/GammaCode.Gamma.yaml" -OutFile "$env:TEMP\GammaCode.Gamma.yaml"
+winget install --manifest "$env:TEMP\GammaCode.Gamma.yaml" --accept-package-agreements --accept-source-agreements'><span>copy</span><span role="status" class="copied-note"></span></button>
       </div>
-      <p class="note">Manifest lives in the repo at <code>installer/winget/manifest/G/GammaCode/GammaCode.Gamma/0.1.1/</code> and validates with <code>winget validate</code>.</p>
+      <p class="note">Downloads the signed-off manifest from this repo, then winget fetches the installer from GitHub Releases and verifies its SHA-256 before running it. Bump <code>$v</code> to upgrade. No community winget submission needed.</p>
     </div>
 
     <div role="tabpanel" id="panel-msi" aria-labelledby="tab-msi" hidden>
@@ -350,21 +354,18 @@ stderr: (empty)</code></pre>
     <div class="grid two">
       <article class="card release-card">
         <div class="release-head">
-          <h3>v0.1.1</h3>
+          <h3>v0.1.2</h3>
           <span class="pill pill-amber">latest</span>
           <span class="dim">2026-10-31</span>
         </div>
         <ul class="ticks">
-          <li>automatic Ollama setup: detect → offer install with live progress → hardware-matched model pull → start <code>ollama serve</code> → pick the newest installed model</li>
-          <li>live streaming replies — prose appears as it is written, tool calls stay behind the spinner</li>
-          <li>Gamma Aurora terminal theme: framed banner, markdown-aware replies, styled tool lines</li>
-          <li>7 tools, exact-match edits, and an agent prompt that acts instead of describing</li>
-          <li>system prompt stays hidden until you open it from the launcher</li>
-          <li>three permission modes, tiered compaction, per-workspace session restore</li>
-          <li>Inno Setup installer, portable zip, PowerShell installer and winget manifest</li>
+          <li>hardened file tools for large projects: scans honor <code>.gitignore</code>, skip VCS/dependency folders and binaries; results are capped with exact continuation hints</li>
+          <li><code>edit_file</code> tolerates CRLF/LF and indentation drift, block-anchor fallback for minor drift, <code>replace_all</code>; missing paths suggest “did you mean”</li>
+          <li>read_file: 50 KB output cap with a “read this range next” marker; per-line clip for generated files</li>
+          <li>winget install now works from the repo manifest (no community submission needed)</li>
         </ul>
-        <p class="card-link"><a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.1" rel="noopener">full release notes →</a></p>
-        <p class="card-link dim">previous: <a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.0" rel="noopener">v0.1.0</a> — first public release</p>
+        <p class="card-link"><a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.2" rel="noopener">full release notes →</a></p>
+        <p class="card-link dim">previous: <a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.1" rel="noopener">v0.1.1</a> — auto Ollama setup, streaming</p>
       </article>
       <article class="card">
         <h3 class="card-title">Verify what you download</h3>
@@ -384,7 +385,7 @@ stderr: (empty)</code></pre>
   <div class="foot-grid">
     <div class="foot-col">
       <p class="foot-h">gamma</p>
-      <p>0.1.1 · MIT</p>
+      <p>0.1.2 · MIT</p>
       <p>Windows 10 22H2+ / Windows 11</p>
     </div>
     <div class="foot-col">

@@ -61,11 +61,22 @@ void print_assistant_continuation(const std::string& text);
 // (Claude Code-style) then a y/N read on stdin.
 bool ask_yes_no(const std::string& proposal);
 
+// The ask tool's UI: prints the question (and, when given, a numbered option
+// picker), reads the user's reply on stdin, and echoes what was registered.
+// answered=false means stdin hit EOF — nobody is there to answer
+// (non-interactive run); the tool turns that into a tool error.
+struct UserAnswer {
+  bool answered = false;
+  std::string text;
+};
+UserAnswer ask_user_question(const std::string& question,
+                             const std::vector<std::string>& options);
+
 // Human-facing description of a proposed action. run_command shows the full
 // command; edit_file shows the diff (step 2); anything else gets a summary.
 std::string proposal_text(const std::string& tool_name, const nlohmann::json& arguments);
 
-// Animated "✻ writing a file… (3s)" indicator on a background thread while
+// Animated "▖ writing a file… (3s)" indicator on a background thread while
 // gamma waits on Ollama. The label CHANGES while the streamed response
 // arrives (streaming_status maps the accumulating text to a verb), so the
 // indicator always says what the model is doing right now — never a stale

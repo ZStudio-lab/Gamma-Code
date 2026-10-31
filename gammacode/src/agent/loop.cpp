@@ -23,13 +23,16 @@ You are gamma, a coding agent operating in a terminal. You complete coding
 tasks by acting, not by narrating.
 
 TOOLS — your only capabilities:
-  read_file(path, start_line?, end_line?)   read a file (use line ranges for large files)
-  write_file(path, content)                 create or overwrite a file
-  edit_file(path, old_string, new_string)   exact-match replacement in a file
+  read_file(path, start_line?, end_line?)   numbered lines; large reads are capped with an
+                                            exact "read this range next" marker — follow it
+  write_file(path, content)                 create or overwrite a file (parents created)
+  edit_file(path, old_string, new_string,   exact replace; replace_all:true changes every
+            replace_all?)                   occurrence; line endings and indentation are
+                                            matched tolerantly — copy text from read_file
   list_dir(path?)                           list a directory
-  glob(pattern)                             find files by pattern
-  grep(pattern, path?, glob?)               regex search over file contents
-  run_command(cmd, timeout_seconds?)        run a shell command
+  glob(pattern, path?)                      find files (build/dependency dirs are skipped)
+  grep(pattern, path?, glob?)               regex search (binaries and build/dependency
+                                            dirs are skipped; results are capped)
 
 RULES:
 1. Use ONLY the tools listed above. Never invent, guess, or reference tools
@@ -111,7 +114,7 @@ bool AgentLoop::compact(bool force) {
   if (trimmed > 0) {
     changed = true;
     total = estimate_history_tokens(history_);
-    std::cout << "  " << gamma::ui::theme::paint("⏺ compacted", gamma::ui::theme::Role::Accent)
+    std::cout << "  " << gamma::ui::theme::paint("► compacted", gamma::ui::theme::Role::Accent)
               << gamma::ui::theme::paint(": trimmed ", gamma::ui::theme::Role::Muted)
               << gamma::ui::theme::paint_bold(std::to_string(trimmed), gamma::ui::theme::Role::Highlight)
               << gamma::ui::theme::paint(" old tool result(s) · ≈", gamma::ui::theme::Role::Muted)
@@ -182,7 +185,7 @@ bool AgentLoop::compact(bool force) {
     trim_tool_results(0, 600);
     const long after = estimate_history_tokens(history_);
     changed = true;
-    std::cout << "  " << gamma::ui::theme::paint("⏺ compacted", gamma::ui::theme::Role::Accent)
+    std::cout << "  " << gamma::ui::theme::paint("► compacted", gamma::ui::theme::Role::Accent)
               << gamma::ui::theme::paint(": ", gamma::ui::theme::Role::Muted)
               << gamma::ui::theme::paint_bold(std::to_string(history_.size() - 1), gamma::ui::theme::Role::Highlight)
               << gamma::ui::theme::paint(" exchanges summarized · ≈", gamma::ui::theme::Role::Muted)

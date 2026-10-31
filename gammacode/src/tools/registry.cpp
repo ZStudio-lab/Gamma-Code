@@ -54,6 +54,14 @@ Registry default_registry() {
   registry.add(make_glob_tool());
   registry.add(make_grep_tool());
   registry.add(make_run_command_tool());
+  registry.add(make_ask_tool());
+  // web_search is the one outbound tool; GAMMA_NO_WEB=1 removes it for
+  // strictly local-only runs.
+  const char* no_web = std::getenv("GAMMA_NO_WEB");
+  const bool web_enabled =
+      no_web == nullptr || (no_web[0] != '\0' && std::string(no_web) != "0" &&
+                            std::string(no_web) != "false");
+  if (web_enabled) registry.add(make_web_search_tool());
   return registry;
 }
 
@@ -80,7 +88,7 @@ bool permitted(const Tool& tool, const nlohmann::json& arguments, Mode mode, boo
     if (!tool.readonly) {
       std::cout << "  ✗ " << tool.name
                 << " is not allowed in plan mode (plan permits read-only tools only: "
-                   "read_file, list_dir, glob, grep)\n";
+                   "read_file, list_dir, glob, grep, ask, web_search)\n";
       return false;
     }
     return true;

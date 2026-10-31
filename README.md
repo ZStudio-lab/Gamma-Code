@@ -20,9 +20,9 @@ reports back in an interactive terminal REPL (`γ ❯`).
 
 | Tool | What it does |
 |---|---|
-| `read_file` | Numbered lines; files over 2,000 lines split head + tail (first 500, last 200) with a hint to request ranges |
-| `write_file` / `edit_file` | Create or overwrite; exact-match replacement that refuses ambiguous matches. In `ask` mode every edit shows a unified diff first |
-| `list_dir` / `glob` / `grep` | Folders, path patterns, and regex over contents (500 paths / 200 hits caps, `file:line:` format) |
+| `read_file` | Numbered lines; `start_line`/`end_line` ranges; large reads capped (first 500 + last 200 of 2,000+ line files, 50 KB output) with the exact range to request next; binary files refused |
+| `write_file` / `edit_file` | Create or overwrite (parents created); exact-match replacement tolerant of CRLF/LF and indentation with a block-anchor fallback, `replace_all` for repeated hits, ambiguity refused. In `ask` mode every edit shows a unified diff first |
+| `list_dir` / `glob` / `grep` | Folders, path patterns (optionally rooted at a subdirectory), and regex over contents. Honors the root `.gitignore`, skips VCS/dependency folders and binaries; caps: 500 paths, 200 grep hits (50 per file), `file:line:` format |
 | `run_command` | `cmd.exe /c`, 60‑second timeout, stdout and stderr captured separately |
 | compaction | Tiered: truncate old tool output → summarize old turns → hard-drop oldest. Never interrupts a tool call mid-flight |
 
@@ -82,8 +82,17 @@ Set `GAMMA_NO_SETUP=1` to skip the Ollama bootstrap (useful in scripts and CI).
 
 Prebuilt installer (Inno Setup) and a PowerShell one-liner live in
 [Releases](https://github.com/ZStudio-lab/Gamma-Code/releases); the site's
-PowerShell path verifies the binary's SHA-256 before installing. To build from
-source:
+PowerShell path verifies the binary's SHA-256 before installing. winget works
+too — it installs from this repo's manifest, so no community submission is
+needed:
+
+```powershell
+$v = "0.1.2"  # latest release
+irm "https://raw.githubusercontent.com/ZStudio-lab/Gamma-Code/main/installer/winget/manifest/G/GammaCode/GammaCode.Gamma/$v/GammaCode.Gamma.yaml" -OutFile "$env:TEMP\GammaCode.Gamma.yaml"
+winget install --manifest "$env:TEMP\GammaCode.Gamma.yaml" --accept-package-agreements --accept-source-agreements
+```
+
+To build from source:
 
 ```powershell
 cmake -B build -S gammacode
@@ -96,11 +105,14 @@ network access once for CMake's FetchContent.
 
 ## Status
 
-v0.1.1. Local sessions, live streaming, compaction, three permission modes, the
+v0.1.2. Local sessions, live streaming, compaction, three permission modes, the
 launcher and automatic Ollama setup (detect → install → hardware-matched model
 pull → serve → newest-model selection) work on Windows 10 22H2+ and Windows 11.
+v0.1.2 hardened the file tools for large projects: gitignore-aware scans,
+CRLF/indentation-tolerant edits with `replace_all`, capped reads with
+continuation markers, binary detection, and "did you mean" path suggestions.
 Shipped with an Inno Setup installer, a portable zip, a PowerShell installer,
-and a winget manifest.
+and a winget manifest that installs straight from this repo.
 
 ## License
 

@@ -11,9 +11,9 @@ BEGIN
     BLOCK "040904B0"
     BEGIN
       VALUE "FileDescription", "Gamma Code - local-only coding agent"
-      VALUE "FileVersion",     "0.1.1"
+      VALUE "FileVersion",     "0.1.2"
       VALUE "ProductName",     "Gamma Code"
-      VALUE "ProductVersion",  "0.1.1"
+      VALUE "ProductVersion",  "0.1.2"
     END
   END
   BLOCK "VarFileInfo"

@@ -55,12 +55,12 @@ void print_help(std::ostream& out) {
   out << "\n" << paint_bold("Tools", Role::Accent) << "\n";
   struct ToolDoc { const char* sig; const char* note; };
   static constexpr ToolDoc kTools[] = {
-      {"read_file(path, start_line?, end_line?)", ""},
-      {"write_file(path, content)", "no prompt (auto is default)"},
-      {"edit_file(path, old_string, new_string)", "unique match; no prompt"},
+      {"read_file(path, start_line?, end_line?)", "capped long reads with continuation markers"},
+      {"write_file(path, content)", "no prompt (auto is default); parents created"},
+      {"edit_file(path, old, new, replace_all?)", "endings/indent tolerated; replace_all for every hit"},
       {"list_dir(path?)", "lists a directory"},
-      {"glob(pattern)", "finds files by pattern"},
-      {"grep(pattern, path?, glob?)", "regex search over files"},
+      {"glob(pattern, path?)", "skips build/dependency dirs"},
+      {"grep(pattern, path?, glob?)", "skips binaries; capped at 200 hits"},
       {"run_command(cmd, timeout_seconds?)", "no prompt (use --no-yolo to gate it)"},
   };
   for (const ToolDoc& tool : kTools) {
@@ -120,7 +120,7 @@ class ReplSession {
       // FULL restore: every message — user turns, replies, tool calls and
       // their JSON results — is back in history; compaction also re-applies.
       const gamma::AgentLoop::Stats snapshot = loop_.stats();
-      std::cout << "  " << gamma::ui::theme::paint("⏺ restored", gamma::ui::theme::Role::Accent)
+      std::cout << "  " << gamma::ui::theme::paint("► restored", gamma::ui::theme::Role::Accent)
                 << gamma::ui::theme::paint(" conversation · ", gamma::ui::theme::Role::Muted)
                 << gamma::ui::theme::paint_bold(std::to_string(snapshot.messages - 1), gamma::ui::theme::Role::Highlight)
                 << gamma::ui::theme::paint(" messages · ≈", gamma::ui::theme::Role::Muted)
@@ -171,7 +171,7 @@ class ReplSession {
       print_help(std::cout);
     } else if (command == "/exit" || command == "/quit") {
       std::cout << gamma::ui::theme::paint("bye", gamma::ui::theme::Role::Muted) << " "
-                << gamma::ui::theme::paint("✨", gamma::ui::theme::Role::Accent) << "\n";
+                << gamma::ui::theme::paint("γ", gamma::ui::theme::Role::Accent) << "\n";
       return false;
     } else if (command == "/model") {
       if (argument.empty()) {

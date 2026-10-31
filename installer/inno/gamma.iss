@@ -4,7 +4,7 @@
 ; SHA-256 against CHECKSUM.txt after the files are in place.
 
 #define public AppName "Gamma Code"
-#define public AppVersion "0.1.1"
+#define public AppVersion "0.1.2"
 #define public AppId "6FA0DE35-3C8E-4B27-9C58-52E793F7A0B4"
 
 [Setup]

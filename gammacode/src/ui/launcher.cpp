@@ -508,7 +508,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
           return true;
         } else if (highlight == Exit) {
           clear_view();
-          std::cout << dim("  bye ") << theme::paint("✨", Role::Accent) << "\n";
+          std::cout << dim("  bye ") << theme::paint("γ", Role::Accent) << "\n";
           return false;
         }
         break;
@@ -517,7 +517,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
       default:
         if (ch == 'q' || ch == 'Q') {
           clear_view();
-          std::cout << dim("  bye ") << theme::paint("✨", Role::Accent) << "\n";
+          std::cout << dim("  bye ") << theme::paint("γ", Role::Accent) << "\n";
           return false;
         }
         if (ch == 'n' || ch == 'N') {

@@ -58,6 +58,8 @@ Tool make_list_dir_tool();
 Tool make_glob_tool();
 Tool make_grep_tool();
 Tool make_run_command_tool();
+Tool make_ask_tool();
+Tool make_web_search_tool();
 Registry default_registry();
 
 // The permission gate. `confirm` prints the full proposed action and waits

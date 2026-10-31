@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.10.0.schema.json
+PackageIdentifier: GammaCode.Gamma
+PackageVersion: 0.1.2
+PackageLocale: en-US
+Publisher: ZStudio-lab
+PublisherUrl: https://github.com/ZStudio-lab
+PublisherSupportUrl: https://github.com/ZStudio-lab/Gamma-Code/issues
+Author: ZStudio-lab
+PackageName: Gamma Code
+PackageUrl: https://github.com/ZStudio-lab/Gamma-Code
+License: MIT
+LicenseUrl: https://github.com/ZStudio-lab/Gamma-Code/blob/main/LICENSE
+ShortDescription: Local-only, terminal-native AI coding agent for Windows.
+Description: |-
+  Gamma Code is a local-only, terminal-native AI coding agent for Windows.
+  It talks only to Ollama on 127.0.0.1:11434 - no cloud, no API keys, no
+  telemetry. Not the prompt, not the code, not the conversation ever leaves
+  the machine. Replies stream live, with tool-call JSON kept behind the
+  normal spinner. Tools: read_file, write_file/edit_file (exact-match
+  replacement that refuses ambiguous matches), list_dir/glob/grep,
+  run_command (cmd.exe /c), and tiered context
+  compaction for long sessions. On first run it offers to install Ollama,
+  pulls the best qwen2.5-coder model for the machine's RAM/VRAM, then starts
+  ollama serve and uses the newest installed tool-capable model. Permission
+  modes: auto (default - hands-free,
+  --no-yolo re-adds the run_command prompt), ask (writes and commands prompt
+  y/N with the diff or command shown), plan (read-only). Ollama itself is not
+  bundled.
+Moniker: gamma
+Tags:
+  - windows
+  - cli
+  - ai-agent
+  - ollama
+  - local-first
+  - terminal
+ReleaseNotesUrl: https://github.com/ZStudio-lab/Gamma-Code/releases/tag/v0.1.2
+Installers:
+  - Architecture: x64
+    InstallerType: inno
+    InstallerUrl: https://github.com/ZStudio-lab/Gamma-Code/releases/download/v0.1.2/Gamma-0.1.2-setup.exe
+    InstallerSha256: 8a28f0b5b66f1ede326a9aaf6931217ae88895c97abc99af37ebe28f99f5442e
+    InstallerSwitches:
+      Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+      SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART
+    UpgradeBehavior: install
+ManifestType: singleton
+ManifestVersion: 1.10.0
