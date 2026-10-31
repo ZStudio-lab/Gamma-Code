@@ -54,7 +54,6 @@ Registry default_registry() {
   registry.add(make_glob_tool());
   registry.add(make_grep_tool());
   registry.add(make_run_command_tool());
-  // Step 3+ adds: ask_user.
   return registry;
 }
 
@@ -81,7 +80,7 @@ bool permitted(const Tool& tool, const nlohmann::json& arguments, Mode mode, boo
     if (!tool.readonly) {
       std::cout << "  ✗ " << tool.name
                 << " is not allowed in plan mode (plan permits read-only tools only: "
-                   "read_file, list_dir, glob, grep, ask_user)\n";
+                   "read_file, list_dir, glob, grep)\n";
       return false;
     }
     return true;

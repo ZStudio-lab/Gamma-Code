@@ -129,6 +129,64 @@ std::size_t stream_write_callback(const char* data, std::size_t size, std::size_
   return bytes;
 }
 
+// --- streaming model pull ------------------------------------------------------
+
+struct PullState {
+  std::string pending;  // bytes not yet terminated by '\n'
+  std::string error;    // first {"error": …} seen
+  const OllamaClient::PullProgressFn* progress = nullptr;
+};
+
+bool absorb_pull_line(PullState& state, const std::string& line) {
+  if (trim(line).empty()) return true;
+  nlohmann::json event;
+  try {
+    event = nlohmann::json::parse(line);
+  } catch (const std::exception& error) {
+    state.error = "corrupt pull chunk from Ollama (" + std::string(error.what()) + "): " +
+                  trim(line).substr(0, 200);
+    return false;
+  }
+  if (!event.is_object()) return true;
+
+  if (event.contains("error")) {
+    const nlohmann::json& text = event["error"];
+    state.error = "Ollama pull error: " +
+                  (text.is_string() ? text.get<std::string>() : text.dump());
+    return false;
+  }
+
+  OllamaClient::PullEvent update;
+  if (event.contains("status") && event["status"].is_string())
+    update.status = event["status"].get<std::string>();
+  if (event.contains("digest") && event["digest"].is_string())
+    update.digest = event["digest"].get<std::string>();
+  if (event.contains("completed") && event["completed"].is_number())
+    update.completed = event["completed"].get<long long>();
+  if (event.contains("total") && event["total"].is_number())
+    update.total = event["total"].get<long long>();
+
+  if (state.progress != nullptr && *state.progress != nullptr) {
+    (*state.progress)(update);
+  }
+  return true;
+}
+
+std::size_t pull_write_callback(const char* data, std::size_t size, std::size_t count,
+                                void* user) {
+  auto* state = static_cast<PullState*>(user);
+  const std::size_t bytes = size * count;
+  state->pending.append(data, bytes);
+  std::size_t newline = state->pending.find('\n');
+  while (newline != std::string::npos) {
+    const std::string line = state->pending.substr(0, newline);
+    state->pending.erase(0, newline + 1);
+    if (!absorb_pull_line(*state, line)) return 0;
+    newline = state->pending.find('\n');
+  }
+  return bytes;
+}
+
 } // namespace
 
 OllamaClient::OllamaClient(std::string base_url) : base_url_(std::move(base_url)) {
@@ -279,6 +337,93 @@ std::vector<std::string> OllamaClient::installed_models() {
   std::sort(names.begin(), names.end());
   names.erase(std::unique(names.begin(), names.end()), names.end());
   return names;
+}
+
+std::vector<OllamaClient::ModelInfo> OllamaClient::installed_model_info() {
+  nlohmann::json tags;
+  try {
+    tags = nlohmann::json::parse(get("/api/tags", 10));
+  } catch (const GammaError&) {
+    throw;
+  } catch (const std::exception& error) {
+    throw GammaError(std::string("could not parse Ollama /api/tags response: ") + error.what());
+  }
+  if (!tags.is_object() || !tags.contains("models") || !tags["models"].is_array()) {
+    throw GammaError("Ollama /api/tags response has no models array");
+  }
+  std::vector<ModelInfo> models;
+  for (const nlohmann::json& model : tags["models"]) {
+    if (!model.is_object() || !model.contains("name") || !model["name"].is_string())
+      continue;
+    ModelInfo info;
+    info.name = model["name"].get<std::string>();
+    if (model.contains("modified_at") && model["modified_at"].is_string())
+      info.modified_at = model["modified_at"].get<std::string>();
+    if (model.contains("size") && model["size"].is_number())
+      info.size = model["size"].get<long long>();
+    models.push_back(std::move(info));
+  }
+  return models;
+}
+
+void OllamaClient::pull_model(const std::string& model, const PullProgressFn& progress) {
+  if (model.empty()) throw GammaError("pull_model: empty model name");
+
+  nlohmann::json body = {{"model", model}, {"stream", true}};
+  const std::string json_body = body.dump();
+
+  PullState state;
+  state.progress = &progress;
+  CurlSlist headers;
+  headers.append("Content-Type: application/json");
+
+  CurlHandle curl;
+  curl_easy_setopt(curl.get(), CURLOPT_URL, (base_url_ + "/api/pull").c_str());
+  curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, json_body.c_str());
+  curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDSIZE, static_cast<long>(json_body.size()));
+  curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, &pull_write_callback);
+  curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &state);
+  curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.get());
+  // A pull can take minutes on a slow link; only a fully dead stream aborts.
+  curl_easy_setopt(curl.get(), CURLOPT_LOW_SPEED_LIMIT, 1L);
+  curl_easy_setopt(curl.get(), CURLOPT_LOW_SPEED_TIME, 120L);
+  curl_easy_setopt(curl.get(), CURLOPT_TCP_KEEPALIVE, 1L);
+
+  const CURLcode status = curl_easy_perform(curl.get());
+  if (!state.error.empty()) throw GammaError(state.error);
+  if (status == CURLE_WRITE_ERROR) throw GammaError("Ollama pull aborted");
+  if (status != CURLE_OK) {
+    throw GammaError(std::format("could not reach Ollama at {} (curl: {})", base_url_,
+                                 curl_easy_strerror(status)));
+  }
+  long http_code = 0;
+  curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &http_code);
+  if (http_code != 200) {
+    throw GammaError(std::format("Ollama answered HTTP {} for /api/pull: {}", http_code,
+                                 trim(state.pending).substr(0, 400)));
+  }
+  if (!state.pending.empty()) {
+    absorb_pull_line(state, state.pending);
+    if (!state.error.empty()) throw GammaError(state.error);
+  }
+}
+
+bool OllamaClient::model_supports_tools(const std::string& model) {
+  try {
+    const std::string response =
+        post("/api/show", nlohmann::json{{"model", model}}.dump(), 15);
+    const nlohmann::json info = nlohmann::json::parse(response);
+    if (info.contains("capabilities") && info["capabilities"].is_array()) {
+      for (const nlohmann::json& capability : info["capabilities"]) {
+        if (capability.is_string() && capability.get<std::string>() == "tools") return true;
+      }
+      return false;
+    }
+  } catch (const std::exception&) {
+    // Unknown → assume yes; the caller only uses this to rank installed models.
+    return true;
+  }
+  return true;
 }
 
 } // namespace gamma

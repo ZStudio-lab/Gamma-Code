@@ -160,8 +160,10 @@ Options parse_options(int argc, char** argv) {
   Options opts;
 
   if (const char* env = std::getenv("GAMMA_MODEL")) {
-    if (env[0] != '\0')
+    if (env[0] != '\0') {
       opts.model = env;
+      opts.model_explicit = true;
+    }
   }
   if (const char* env = std::getenv("GAMMA_MODE")) {
     if (env[0] != '\0' && !parse_mode(env, opts.mode)) {
@@ -193,6 +195,7 @@ Options parse_options(int argc, char** argv) {
       opts.one_shot = true;
     } else if (arg == "--model" || arg == "-m") {
       opts.model = need_value(i++, arg);
+      opts.model_explicit = true;
     } else if (arg == "--mode") {
       const std::string value = need_value(i++, arg);
       if (!parse_mode(value, opts.mode)) {
@@ -227,7 +230,7 @@ std::string usage() {
 Usage:
   gamma                     interactive REPL
   gamma -p "<prompt>"       one-shot
-  gamma --model <name>      default: qwen2.5-coder:7b (also GAMMA_MODEL)
+  gamma --model <name>      pin a model; default: newest installed (also GAMMA_MODEL)
   gamma --mode <plan|ask>   opt-in: re-enable permission gates (else fully automated)
   gamma --context <tokens>  default: 32k (also GAMMA_CONTEXT)
   gamma --no-yolo           re-approve run_command prompts (auto-run is default)
@@ -235,6 +238,11 @@ Usage:
   gamma --workspace <dir>   working dir for all tools (also GAMMA_WORKSPACE)
   gamma --ollama-url <url>  must be loopback; default http://127.0.0.1:11434
   gamma --help
+
+On first run gamma offers to install Ollama, then pulls the best qwen2.5-coder
+model for this machine (1.5b / 3b / 7b / 14b / 32b). After that it starts
+`ollama serve` when needed and uses the newest installed tool-capable model.
+Set GAMMA_NO_SETUP=1 to skip that bootstrap and manage Ollama yourself.
 
 Everything runs without permission prompts by default (mode auto): reads,
 writes, edits and commands are executed straight away with their results

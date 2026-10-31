@@ -2,6 +2,8 @@
 
 #include "ui/theme.hpp"
 
+#include "agent/formatter.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -12,6 +14,7 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -340,6 +343,10 @@ void print_assistant_message(const std::string& text) {
   theme::print_markdown_reply(text);
 }
 
+void print_assistant_continuation(const std::string& text) {
+  theme::print_markdown_continuation(text);
+}
+
 bool ask_yes_no(const std::string& proposal) {
   const std::vector<std::string> lines = split_lines(proposal);
   std::cout << "\n";
@@ -565,6 +572,53 @@ bool stop_output_pressed() {
 #else
   return false;
 #endif
+}
+
+// --- live assistant prose ------------------------------------------------------
+
+StreamPrinter::StreamPrinter(BeforeFirstFn before_first)
+    : before_first_(std::move(before_first)) {}
+
+StreamPrinter::~StreamPrinter() { finish(); }
+
+void StreamPrinter::feed(const std::string& accumulated_content) {
+  if (finished_) return;
+  // Only the leading prefix that cannot still become a tool call is shown
+  // live; everything from the first fence / <tool_call> / bare `{` onward
+  // waits for the finished parse.
+  const std::size_t safe = gamma::streamable_prefix(accumulated_content);
+  if (safe <= shown_) return;
+  emit(accumulated_content.substr(shown_, safe - shown_));
+  shown_ = safe;
+}
+
+void StreamPrinter::emit(const std::string& text) {
+  if (text.empty()) return;
+  std::string out;
+  if (!wrote_) {
+    wrote_ = true;
+    if (before_first_) before_first_(); // stop+wipe the spinner first
+    out += "  " + theme::paint("\xE2\x8F\xBA", theme::Role::Accent) + " ";
+    line_start_ = false;
+  }
+  const std::string styled = theme::paint(text, theme::Role::Text);
+  for (const char c : styled) {
+    if (line_start_ && c != '\n') {
+      out += "  "; // keep continuation lines aligned with markdown replies
+      line_start_ = false;
+    }
+    out += c;
+    if (c == '\n') line_start_ = true;
+  }
+  std::cout << out << std::flush;
+}
+
+void StreamPrinter::finish() {
+  if (finished_) return;
+  finished_ = true;
+  if (wrote_ && !line_start_) {
+    std::cout << "\n" << std::flush; // never leave the next line glued to the reply
+  }
 }
 
 } // namespace gamma::ui

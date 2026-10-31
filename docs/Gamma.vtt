@@ -1,0 +1,13 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.000
+Screen capture: the Gamma Code agent working in a terminal.
+
+00:00:06.000 --> 00:00:12.000
+It reads the code with its tools, then makes the edit itself.
+
+00:00:12.000 --> 00:00:18.000
+Tool calls appear as short breadcrumbs while the work happens.
+
+00:00:18.000 --> 00:00:23.000
+The reply streams in live. Everything runs locally through Ollama on 127.0.0.1.

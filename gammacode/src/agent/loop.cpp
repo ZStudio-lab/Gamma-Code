@@ -15,15 +15,39 @@ namespace gamma {
 
 namespace {
 
-// Emitted at the start of every conversation; kept verbatim per spec.
+// Emitted at the start of every conversation.
+// Rules the model must follow: use ONLY the provided toolset, act instead of
+// describing, and never answer with "copy this code" — do the edit itself.
 const char* kSystemPromptText = R"SYSTEM_PROMPT(
-You are gamma, a coding agent operating in a terminal. You have tools to
-read, write, edit, search, run commands, and ask the user. Prefer reading
-before editing. Use read_file with line ranges for large files. Execute
-actions directly and without hesitation; your tool results are shown to
-the user automatically. After edits, verify by reading the changed region
-or running tests. Never claim you did something you did not do via a
-tool. If a task needs information only the user has, call ask_user.)SYSTEM_PROMPT";
+You are gamma, a coding agent operating in a terminal. You complete coding
+tasks by acting, not by narrating.
+
+TOOLS — your only capabilities:
+  read_file(path, start_line?, end_line?)   read a file (use line ranges for large files)
+  write_file(path, content)                 create or overwrite a file
+  edit_file(path, old_string, new_string)   exact-match replacement in a file
+  list_dir(path?)                           list a directory
+  glob(pattern)                             find files by pattern
+  grep(pattern, path?, glob?)               regex search over file contents
+  run_command(cmd, timeout_seconds?)        run a shell command
+
+RULES:
+1. Use ONLY the tools listed above. Never invent, guess, or reference tools
+   that do not exist in this list, and never simulate tool output.
+2. NEVER tell the user to copy, paste, or manually apply code. If a change
+   belongs in a file, perform it yourself with edit_file or write_file.
+   Code you show in a reply is a snippet for explanation only — any change
+   that must land on disk goes through a tool.
+3. Always read before editing: read_file the target region first, then edit.
+   After edits, verify by re-reading the changed region or running tests
+   with run_command.
+4. Never claim you did something you did not do via a tool. Your tool calls
+   and results are shown to the user automatically — do not paste tool
+   output or long file contents back into your reply; keep replies short
+   and say what changed and why.
+5. Execute actions directly and without hesitation. If a task needs
+   information only the user has, ask for it precisely in your reply
+   instead of guessing.)SYSTEM_PROMPT";
 
 constexpr int kMaxIterations = 40;
 constexpr std::size_t kToolResultLimit = 8 * 1024; // 8 KB
@@ -316,22 +340,31 @@ bool AgentLoop::run_turn(const std::string& user_text) {
 
     bool user_stopped = false;
     Message assistant;
+    std::size_t streamed = 0; // bytes of assistant.content already shown live
     {
       ui::Spinner spinner;
       ui::StreamStopWindow stop_window; // while streaming: ESC / Ctrl+C stop
+      // Live prose: safe chunks print as they arrive; the first one stops the
+      // spinner before touching stdout so the two never overwrite each other.
+      ui::StreamPrinter printer([&spinner] { spinner.stop(); });
       spinner.start();
       try {
-        // Streaming chat: the indicator's label tracks what the model is
-        // doing right now, live, as the response streams in; ESC stops it.
+        // Streaming chat: prose is shown in real time, while the indicator's
+        // label tracks what the model is doing whenever there is no prose yet
+        // (notably while it builds a tool call); ESC stops the whole answer.
         assistant =
             client_.chat(build_request(),
-                         [&spinner, &user_stopped](const std::string& content) {
-                           spinner.set_label(ui::stream_status(content));
+                         [&spinner, &printer, &user_stopped](const std::string& content) {
+                           printer.feed(content);
+                           if (!printer.wrote()) {
+                             spinner.set_label(ui::stream_status(content));
+                           }
                            const bool keep = !ui::stop_output_pressed();
                            if (!keep) user_stopped = true;
                            return keep;
                          });
       } catch (const std::exception& error) {
+        printer.finish();
         // Wire/parse failure: no assistant message exists yet to append, so
         // hand the failure back to the model as a corrective note. The loop
         // cap still applies — gamma cannot hang spinning on a broken server.
@@ -349,6 +382,8 @@ bool AgentLoop::run_turn(const std::string& user_text) {
         last_error = error.what();
         continue;
       }
+      streamed = printer.shown();
+      printer.finish();
     }
 
     if (user_stopped) {
@@ -366,7 +401,14 @@ bool AgentLoop::run_turn(const std::string& user_text) {
     history_.push_back(assistant); // keep an intact local copy for this round
 
     if (assistant.tool_calls.empty()) {
-      ui::print_assistant_message(assistant.content);
+      // Live streaming already showed the safe prefix (all of it for plain
+      // prose). Print only what was held back — a fence or trailing text — so
+      // the final answer is never duplicated; nothing streamed ⇒ full reply.
+      if (streamed == 0) {
+        ui::print_assistant_message(assistant.content);
+      } else if (streamed < assistant.content.size()) {
+        ui::print_assistant_continuation(assistant.content.substr(streamed));
+      }
       return true;
     }
 

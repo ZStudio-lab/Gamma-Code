@@ -18,6 +18,9 @@ const std::filesystem::path& workspace_root();
 
 struct Options {
   std::string model = "qwen2.5-coder:7b";
+  // True when GAMMA_MODEL / --model / -m asked for a specific model. When
+  // false, startup uses the most recently updated tool-capable model.
+  bool model_explicit = false;
   Mode mode = Mode::Auto; // overridable via GAMMA_MODE / --mode (plan/ask re-enable gates)
   bool yolo = true;       // run_command auto-executes; --no-yolo re-enables its prompt
   // 0 => derive budget: 80% of the model's context window

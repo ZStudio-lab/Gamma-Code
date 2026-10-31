@@ -4,18 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gamma Code — local-only terminal coding agent for Windows</title>
-<meta name="description" content="Gamma Code is a local-only, terminal-native AI coding agent for Windows. One installer, no toolchain. Talks only to Ollama on 127.0.0.1 — no cloud, no API keys, no telemetry.">
+<meta name="description" content="Gamma Code is a local-only, terminal-native AI coding agent for Windows. One installer, no toolchain. Streams replies live, talks only to Ollama on 127.0.0.1 — no cloud, no API keys, no telemetry.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0c0c0c">
+<link rel="canonical" href="https://zstudio-lab.github.io/Gamma-Code/">
 <meta property="og:title" content="Gamma Code — local-only terminal coding agent for Windows">
-<meta property="og:description" content="No cloud, no keys, no telemetry. Ollama on 127.0.0.1, edits with diff review, grep/glob/run, survives long sessions. One install, no C++ toolchain.">
+<meta property="og:description" content="No cloud, no keys, no telemetry. Streams replies live, edits with diff review, and talks only to Ollama on 127.0.0.1. One install, no C++ toolchain.">
+<meta property="og:url" content="https://zstudio-lab.github.io/Gamma-Code/">
 <meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Gamma Code — local-only terminal coding agent for Windows">
+<meta name="twitter:description" content="Local-only, streams replies live, Ollama on 127.0.0.1. No cloud, no keys, no telemetry.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/main.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 
-<header aria-label="Site header">
-  <a class="brand" href="#main" aria-label="Gamma Code home">
+<header class="site-head" aria-label="Site header">
+  <a class="brand" href="#main">
     <svg class="logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
       <path d="M4 8 L11 16 L4 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
       <path d="M23 4 L29 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
@@ -26,8 +34,11 @@
   </a>
   <nav aria-label="Main">
     <a href="#features">Features</a>
-    <a href="#safety">Safety</a>
+    <a href="#safety">Modes</a>
+    <a href="#memory">Sessions</a>
+    <a href="#cli">CLI</a>
     <a href="#install">Install</a>
+    <a href="#changelog">Changelog</a>
     <a href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">GitHub</a>
   </nav>
 </header>
@@ -37,15 +48,25 @@
   <!-- ───────────────────────────── hero ───────────────────────────── -->
   <section class="hero" aria-label="Introduction">
     <div class="hero-copy">
+      <p class="kicker">// local-first · windows-only · C++20</p>
       <h1>A local-only coding agent that lives in Windows&nbsp;Terminal.</h1>
-      <p class="subline">One installer. No toolchain. Ollama on 127.0.0.1. No cloud, no keys, no telemetry.</p>
+      <p class="subline">One installer. No toolchain. Ollama on <code>127.0.0.1</code>.
+        Replies stream live — no cloud, no keys, no telemetry.</p>
       <div class="cta-row">
         <a class="btn primary" href="#install">Download for Windows</a>
         <a class="btn ghost" href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">View source</a>
       </div>
+      <p class="release-line"><span class="pill pill-amber">v0.1.1</span>
+        <a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.1" rel="noopener">latest release</a>
+        <span class="dim">· MIT · Windows 10 22H2+ / 11</span></p>
+      <ul class="hero-facts" aria-label="Key facts">
+        <li><span class="fact-n">7</span> tools — read, write, edit, list, glob, grep, run</li>
+        <li><span class="fact-n">live</span> streaming replies; <kbd>Esc</kbd> stops output mid-answer</li>
+        <li><span class="fact-n">0</span> model calls beyond <code>127.0.0.1:11434</code> — prompts and code never leave</li>
+      </ul>
     </div>
 
-    <div class="term" role="img" aria-label="Mock Windows Terminal window running gamma">
+    <div class="term">
       <div class="term-bar" aria-hidden="true">
         <span class="term-menu">⋯</span>
         <span class="term-tab active"><svg class="logo logo-sm" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 8 L11 16 L4 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"/><path d="M23 4 L29 28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"/><path d="M13 13 L17 18 L13 23" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/></svg>gamma — PowerShell</span>
@@ -53,65 +74,79 @@
         <span class="term-gap"></span>
         <span class="term-win">─ □ ✕</span>
       </div>
-      <div class="term-body" tabindex="0">
-        <div class="tline">PS C:\&gt; <span class="caret-g">γ ❯</span> <span id="typed" data-text="find every call to User::save() and list the files"></span><span class="block-cursor" aria-hidden="true"></span></div>
-        <div class="tline exchange"><span class="tick">⏺</span> grep(pattern=User::save)</div>
-        <div class="tline dim exchange">└ src\models\user.cpp:41:   this-&gt;save();</div>
-        <div class="tline dim exchange">└ src\ui\dialogs.cpp:112:   user.save();</div>
-        <div class="tline dim exchange">└ src\services\sync.cpp:58: profile.save();</div>
-        <div class="tline exchange"><span class="tick">⏺</span> <span class="green">3 call sites in 3 files.</span></div>
-      </div>
+      <video class="term-video" autoplay muted loop playsinline preload="metadata"
+             aria-label="Gamma Code in action: it greps for a save call, edits the file, and streams its reply live">
+        <source src="Gamma.mp4" type="video/mp4">
+        <track kind="captions" src="Gamma.vtt" srclang="en" label="English" default>
+      </video>
     </div>
   </section>
 
   <!-- ─────────────────────── local-only banner ─────────────────────── -->
   <section class="banner" aria-label="Local-only guarantee">
     <p><strong>Nothing leaves your machine.</strong> Not the prompt, not the code, not the conversation.
-    The installer makes no network calls beyond the download itself.</p>
+    Loopback-only is enforced in the binary, not just documented: a non-local <code>--ollama-url</code> refuses to start.
+    The one external request is the official Ollama installer on first run — and only after you answer yes.</p>
   </section>
+
+  <!-- ─────────────────────── release highlights ─────────────────────── -->
+  <div class="release-strip" aria-label="Highlights in v0.1.1">
+    <span class="release-tag">v0.1.1</span>
+    <ul>
+      <li><b>Live streaming</b> — prose appears as the model writes it</li>
+      <li><b>Auto Ollama</b> — detects, installs, pulls by hardware</li>
+      <li><b>Full restore</b> — sessions keep tool calls and results</li>
+    </ul>
+    <a class="release-link" href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.1" rel="noopener">release notes →</a>
+  </div>
 
   <!-- ─────────────────────────── features ─────────────────────────── -->
   <section id="features" aria-label="Features">
-    <h2>What the tools do</h2>
+    <div class="sec-head"><span class="sec-n">01</span><h2>What the tools do</h2><span class="sec-rule" aria-hidden="true"></span></div>
+    <p class="section-sub">Every capability is a named tool with concrete arguments — no vague “AI magic”.</p>
     <div class="grid three">
       <article class="card">
-        <code class="toolname">read_file</code>
-        <p>Numbered lines. Files past 2,000 lines split into head + tail with a hint to request the range you need.</p>
+        <h3 class="card-title"><code class="toolname">read_file</code></h3>
+        <p>Numbered lines, with optional <code>start_line</code>/<code>end_line</code> ranges.
+          A full read of a file over 2,000 lines returns the first 500 and last 200 plus the exact range to request next — that is how long files stay inside the context budget.</p>
 <pre><code>&gt; read_file src\main.cpp
 1: #include &lt;Windows.h&gt;
 2: int WINAPI wWinMain(…
-  … (+1,842 lines — request a line range)</code></pre>
+  … 1,300 lines omitted — call
+  read_file(start_line=501, end_line=900)</code></pre>
       </article>
       <article class="card">
-        <code class="toolname">edit_file</code>
-        <p>Exact-match replacement. Ambiguous or missing matches are refused, never guessed. Every change shows a unified diff before it is written.</p>
+        <h3 class="card-title"><code class="toolname">write_file</code> <code class="toolname">edit_file</code></h3>
+        <p>Create, overwrite, or replace an exact-match region. Ambiguous or missing matches are refused, never guessed.
+          In <code>ask</code> mode every write and edit shows a unified diff before it lands.</p>
 <pre><code class="diff">@@ -14,6 +14,7 @@
 -  user.save();
 +  user.save_async();</code></pre>
       </article>
       <article class="card">
-        <code class="toolname">glob</code> <code class="toolname">grep</code>
-        <p>Paths by pattern; regex over file contents. Capped at 200 hits, reported as <code>file:line: text</code>.</p>
+        <h3 class="card-title"><code class="toolname">list_dir</code> <code class="toolname">glob</code> <code class="toolname">grep</code></h3>
+        <p>Folders, path patterns, and regex over contents. Results are capped — 500 paths, 200 hits — and grep hits come back as <code>file:line: text</code> so they are jumpable.</p>
 <pre><code>&gt; grep pattern="TODO" glob="*.cpp"
 src\models\user.cpp:17: TODO: debounce
 src\ui\dialogs.cpp:44: TODO: i18n</code></pre>
       </article>
       <article class="card">
-        <code class="toolname">run_command</code>
-        <p>Executes via <code>cmd.exe /c</code> — or PowerShell with <code>--shell psh</code> — 60-second timeout, stdout and stderr captured separately.</p>
+        <h3 class="card-title"><code class="toolname">run_command</code></h3>
+        <p>Executes through <code>cmd.exe /c</code>. Default timeout is 60&nbsp;seconds (set <code>timeout_seconds</code> up to an hour); stdout and stderr are captured separately.</p>
 <pre><code>&gt; run_command cmd="cargo test"
 stdout: 31 passed; 0 failed
 stderr: (empty)</code></pre>
       </article>
       <article class="card">
-        <code class="toolname">ask_user</code>
-        <p>The model pauses and asks you directly when it needs something no file contains — a preference, a credential path, a decision.</p>
-<pre><code>ask: "Which branch should I
-      rebase onto — main or next?"</code></pre>
+        <h3 class="card-title">Live streaming</h3>
+        <p>Assistant prose prints token by token, with markdown-aware styling. Tool-call JSON stays behind the normal spinner — so you see the model think, not its raw wire format. <kbd>Esc</kbd> or <kbd>Ctrl</kbd>+<kbd>C</kbd> stops the answer mid-stream.</p>
+<pre><code><span class="spinner-glyph">✻</span> <span class="mut">editing a file… (2s)</span>
+<span class="tick">⏺</span> patched the double save.
+  one call site remains▌</code></pre>
       </article>
       <article class="card">
-        <code class="toolname">compaction</code>
-        <p>Survives long sessions. Tiered: truncate old tool output → summarize old turns → hard-drop oldest. Never interrupts a tool call mid-flight.</p>
+        <h3 class="card-title">Compaction</h3>
+        <p>Survives long sessions. Tiered: truncate old tool output → summarize old turns → hard-drop the oldest. It runs between turns, never mid-tool-call, and keeps an 80% context budget.</p>
 <pre><code>⏺ compacted: 27 exchanges summarized
   ≈61,000 → 9,400 tokens</code></pre>
       </article>
@@ -120,39 +155,116 @@ stderr: (empty)</code></pre>
 
   <!-- ──────────────────────────── safety ──────────────────────────── -->
   <section id="safety" aria-label="Permission modes">
-    <h2>Permission modes</h2>
-    <p class="section-sub">You decide what runs without being asked.</p>
+    <div class="sec-head"><span class="sec-n">02</span><h2>Permission modes</h2><span class="sec-rule" aria-hidden="true"></span></div>
+    <p class="section-sub">The binary is fully automated by default. One flag re-enables the gates.</p>
     <div class="grid three modes">
+      <article class="card mode default">
+        <h3>auto <span class="pill pill-amber">default</span></h3>
+        <p class="mode-desc">Hands-free.</p>
+        <ul>
+          <li>reads, writes, edits, commands: run immediately</li>
+          <li>every call still prints a breadcrumb with its result</li>
+          <li><code>--no-yolo</code> adds a <code>y/N</code> prompt for <code>run_command</code></li>
+        </ul>
+      </article>
+      <article class="card mode">
+        <h3>ask</h3>
+        <p class="mode-desc">Reads free. Mutations show first.</p>
+        <ul>
+          <li>reads, listing, search: auto-approved</li>
+          <li>writes, edits, shell: <code>y/N</code> with the full diff or command shown</li>
+          <li>enable with <code>--mode ask</code></li>
+        </ul>
+      </article>
       <article class="card mode">
         <h3>plan</h3>
         <p class="mode-desc">Read-only.</p>
         <ul>
-          <li>reads, search, listing: allowed</li>
+          <li>reads, listing, search: allowed</li>
           <li>writes and commands: denied with an explanatory tool error</li>
+          <li>enable with <code>--mode plan</code></li>
         </ul>
       </article>
-      <article class="card mode default">
-        <h3>ask <span class="pill pill-amber">default</span></h3>
-        <p class="mode-desc">Reads are free. Mutations show first.</p>
-        <ul>
-          <li>reads, search, listing: auto-approved</li>
-          <li>writes, edits, shell commands: <code>y/N</code> prompt with the full diff or command shown</li>
+    </div>
+
+    <div class="tablewrap">
+      <table class="matrix" aria-label="What each mode approves">
+        <thead>
+          <tr><th scope="col">operation</th><th scope="col">auto <span class="pill pill-amber">default</span></th><th scope="col">ask</th><th scope="col">plan</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>read_file</code> · <code>list_dir</code> · <code>glob</code> · <code>grep</code></td><td class="yes">run</td><td class="yes">run</td><td class="yes">run</td></tr>
+          <tr><td><code>write_file</code> · <code>edit_file</code></td><td class="yes">run</td><td class="askcell">prompt</td><td class="no">deny</td></tr>
+          <tr><td><code>run_command</code></td><td class="yes">run<sup>*</sup></td><td class="askcell">prompt</td><td class="no">deny</td></tr>
+        </tbody>
+      </table>
+      <p class="matrix-note"><sup>*</sup> add <code>--no-yolo</code> and <code>auto</code> prompts for <code>run_command</code> too. <code>--yolo</code> is accepted for compatibility; running without prompts is already the default.</p>
+    </div>
+  </section>
+
+  <!-- ──────────────────── sessions & memory ──────────────────── -->
+  <section id="memory" aria-label="Sessions and memory">
+    <div class="sec-head"><span class="sec-n">03</span><h2>Sessions &amp; memory</h2><span class="sec-rule" aria-hidden="true"></span></div>
+    <p class="section-sub">Every conversation persists per workspace and restores completely — tool results included.</p>
+    <div class="grid two">
+      <article class="card">
+        <h3 class="card-title">On disk</h3>
+        <pre><code>%LOCALAPPDATA%\Gamma\sessions\
+  Gamma-Code_2026-10-30_21-04-11.json
+  Gamma-Code_2026-10-30_23-41-02.json
+  …</code></pre>
+        <ul class="ticks">
+          <li>one uniquely timestamp-named file per workspace</li>
+          <li>full restore: turns, replies, tool calls <em>and</em> their results</li>
+          <li>written after every turn — a crash loses nothing</li>
         </ul>
       </article>
-      <article class="card mode">
-        <h3>auto</h3>
-        <p class="mode-desc">Hands-free, with a floor.</p>
-        <ul>
-          <li>reads, writes, edits: auto-approved</li>
-          <li><code>run_command</code>: still prompts, unless <code>--yolo</code></li>
+      <article class="card">
+        <h3 class="card-title">In the flow</h3>
+        <ul class="ticks">
+          <li>the launcher’s <b>Sessions</b> row lists saved conversations, newest first</li>
+          <li><kbd>N</kbd> in the launcher starts a brand-new session instantly</li>
+          <li><code>--no-ui</code> auto-resumes the workspace’s newest session</li>
+          <li><code>/clear</code> deletes the file and starts fresh; one-shot <code>-p</code> runs stay ephemeral</li>
+          <li><kbd>Esc</kbd> / <kbd>Ctrl</kbd>+<kbd>C</kbd> stops streaming output; truncated tool calls are never executed</li>
         </ul>
       </article>
+    </div>
+
+    <div class="tiers" role="img" aria-label="Three-tier context compaction: truncate tool output, then summarize old turns, then hard-drop the oldest messages">
+      <div class="tier"><span class="tier-n">tier&nbsp;A</span><p>truncate old tool output<br><span class="mut">biggest payload first</span></p></div>
+      <span class="tier-arrow" aria-hidden="true">→</span>
+      <div class="tier"><span class="tier-n">tier&nbsp;B</span><p>summarize old turns<br><span class="mut">keeps the last 6 intact</span></p></div>
+      <span class="tier-arrow" aria-hidden="true">→</span>
+      <div class="tier"><span class="tier-n">tier&nbsp;C</span><p>hard-drop oldest<br><span class="mut">only if still over budget</span></p></div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── cli reference ─────────────────────── -->
+  <section id="cli" aria-label="Command line reference">
+    <div class="sec-head"><span class="sec-n">04</span><h2>The command line</h2><span class="sec-rule" aria-hidden="true"></span></div>
+    <div class="tablewrap">
+      <table class="matrix" aria-label="Command line flags">
+        <thead><tr><th scope="col">flag</th><th scope="col">what it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>-p "prompt"</code></td><td>one-shot: answer and exit, no REPL, no saved session</td></tr>
+          <tr><td><code>--mode plan|ask|auto</code></td><td>permission policy for this run (default <code>auto</code>, fully automated)</td></tr>
+          <tr><td><code>--no-yolo</code> / <code>--yolo</code></td><td>add or remove the <code>run_command</code> prompt in <code>auto</code> mode</td></tr>
+          <tr><td><code>--context N</code></td><td>token budget override; default is 80% of the model’s context window</td></tr>
+          <tr><td><code>--ollama-url</code></td><td>locked to <code>http://127.0.0.1:11434</code> — a non-loopback value refuses to start</td></tr>
+          <tr><td><code>--no-ui</code></td><td>skip the launcher; auto-resume this workspace’s newest session</td></tr>
+          <tr><td><code>--model name</code></td><td>pin a model; when omitted, the newest installed tool-capable model is used</td></tr>
+          <tr><td><code>-w path</code></td><td>workspace root — every tool path is anchored inside it</td></tr>
+          <tr><td><code>GAMMA_MODEL</code> · <code>GAMMA_MODE</code> · <code>GAMMA_CONTEXT</code> · <code>GAMMA_WORKSPACE</code></td><td>environment equivalents for the flags above</td></tr>
+          <tr><td><code>GAMMA_NO_SETUP=1</code></td><td>skip the Ollama install/start/pull bootstrap and manage the server yourself</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
   <!-- ──────────────────────────── install ──────────────────────────── -->
   <section id="install" aria-label="Install">
-    <h2>Install</h2>
+    <div class="sec-head"><span class="sec-n">05</span><h2>Install</h2><span class="sec-rule" aria-hidden="true"></span></div>
     <p class="section-sub">One installer. No C++ toolchain, CMake, or Visual Studio required.</p>
 
     <div class="tabs" role="tablist" aria-label="Install method">
@@ -166,6 +278,7 @@ stderr: (empty)</code></pre>
         <pre><code id="cmd-ps1">irm https://zstudio-lab.github.io/Gamma-Code/install.ps1 | iex</code></pre>
         <button class="copybtn" data-copy="irm https://zstudio-lab.github.io/Gamma-Code/install.ps1 | iex"><span>copy</span><span role="status" class="copied-note"></span></button>
       </div>
+      <p class="note">Downloads the latest portable build, verifies its SHA-256 against a checksum embedded in the archive, then installs. Nothing else touches the network.</p>
     </div>
 
     <div role="tabpanel" id="panel-winget" aria-labelledby="tab-winget" hidden>
@@ -173,60 +286,120 @@ stderr: (empty)</code></pre>
         <pre><code id="cmd-winget">winget install GammaCode.Gamma</code></pre>
         <button class="copybtn" data-copy="winget install GammaCode.Gamma"><span>copy</span><span role="status" class="copied-note"></span></button>
       </div>
+      <p class="note">Manifest lives in the repo at <code>installer/winget/manifest/G/GammaCode/GammaCode.Gamma/0.1.1/</code> and validates with <code>winget validate</code>.</p>
     </div>
 
     <div role="tabpanel" id="panel-msi" aria-labelledby="tab-msi" hidden>
       <a class="btn primary" href="https://github.com/zstudio-lab/Gamma-Code/releases" rel="noopener">Download installer</a>
-      <p class="note">The installer verifies the binary's SHA-256 against a checksum embedded in it. Trust comes from the source: it lives in this repository.</p>
+      <p class="note">The installer verifies the binary’s SHA-256 against a checksum embedded in it. Trust comes from the source: it lives in this repository.</p>
     </div>
 
     <div class="cmdblock postinstall">
-      <p class="block-label">after install — one-time:</p>
-      <pre><code>ollama pull qwen2.5-coder:7b
-gamma</code></pre>
-      <button class="copybtn" data-copy="ollama pull qwen2.5-coder:7b&#10;gamma"><span>copy</span><span role="status" class="copied-note"></span></button>
+      <p class="block-label">first run — gamma does the rest:</p>
+      <pre><code>gamma</code></pre>
+      <button class="copybtn" data-copy="gamma"><span>copy</span><span role="status" class="copied-note"></span></button>
     </div>
-    <p class="note">One-shot instead? <code>gamma -p "explain main.cpp"</code> answers without entering the <code>γ ❯</code> REPL.</p>
 
-    <p class="note">Gamma does not bundle Ollama; install it separately from
-      <a href="https://ollama.com/download/windows" rel="noopener">ollama.com/download/windows</a>.</p>
+    <div class="reqs">
+      <p class="block-label">requirements</p>
+      <ul class="ticks">
+        <li>Windows 10 22H2+ or Windows 11, x64</li>
+        <li>Ollama is optional at first: gamma asks <code>Install Ollama? [Yes/No]</code>, installs it with visible progress, and starts <code>ollama serve</code></li>
+        <li>No model needed up front — the first run pulls the largest <code>qwen2.5-coder</code> that fits your RAM/VRAM (1.5b / 3b / 7b / 14b / 32b)</li>
+        <li>Already have models? gamma uses the newest tool-capable one automatically; <code>--model</code> pins a specific tag</li>
+      </ul>
+    </div>
+
+    <p class="note">One-shot instead? <code>gamma -p "explain main.cpp"</code> answers without entering the <code>γ ❯</code> REPL.</p>
     <p class="note">Installs to <code>%LOCALAPPDATA%\Programs\GammaCode\</code> and adds it to your user PATH.
-      No C++ toolchain, CMake, or Visual Studio required.</p>
+      The uninstaller removes both again.</p>
 
     <details class="smartscreen">
       <summary>If Windows SmartScreen warns about the installer</summary>
       <p>Click <strong>More info → Run anyway</strong>. Gamma is an unsigned open-source binary —
-      SmartScreen flags any installer it has no download reputation for. If you'd rather not click
-      through the warning, use the PowerShell or Winget path instead, or verify the binary's SHA-256
-      against the value published alongside each release.</p>
+      SmartScreen flags any installer it has no download reputation for. If you’d rather not click
+      through the warning, use the PowerShell or Winget path instead, or verify the binary’s SHA-256
+      against <a href="https://github.com/zstudio-lab/Gamma-Code/releases/latest/download/SHA256SUMS.txt" rel="noopener">SHA256SUMS.txt</a> from the release.</p>
     </details>
   </section>
 
   <!-- ────────────────────── how it works ────────────────────── -->
   <section id="how" aria-label="How it works">
-    <h2>How it works</h2>
+    <div class="sec-head"><span class="sec-n">06</span><h2>How it works</h2><span class="sec-rule" aria-hidden="true"></span></div>
     <div class="diagram" role="img" aria-label="You send a task to the gamma harness, which mediates tools and permissions and talks to the local model; tool results loop back through the harness">
       <div><span class="node">you</span><pre class="dflow">   type a task
         │
         ▼</pre></div>
       <div><span class="node harness">gamma.exe</span><pre class="dflow wide">tools · permissions
- · turn loop
- ·  compaction
+ · streaming · turn loop
+ · session store
+ · compaction
         │ ▲
  results │ │ next
         ▼ │</pre></div>
       <div><span class="node">model</span><pre class="dflow">ollama on
-127.0.0.1
-   │
-   ▼</pre></div>
+ 127.0.0.1
+    │
+    ▼</pre></div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────── changelog ──────────────────────── -->
+  <section id="changelog" aria-label="Changelog">
+    <div class="sec-head"><span class="sec-n">07</span><h2>Changelog</h2><span class="sec-rule" aria-hidden="true"></span></div>
+    <div class="grid two">
+      <article class="card release-card">
+        <div class="release-head">
+          <h3>v0.1.1</h3>
+          <span class="pill pill-amber">latest</span>
+          <span class="dim">2026-10-31</span>
+        </div>
+        <ul class="ticks">
+          <li>automatic Ollama setup: detect → offer install with live progress → hardware-matched model pull → start <code>ollama serve</code> → pick the newest installed model</li>
+          <li>live streaming replies — prose appears as it is written, tool calls stay behind the spinner</li>
+          <li>Gamma Aurora terminal theme: framed banner, markdown-aware replies, styled tool lines</li>
+          <li>7 tools, exact-match edits, and an agent prompt that acts instead of describing</li>
+          <li>system prompt stays hidden until you open it from the launcher</li>
+          <li>three permission modes, tiered compaction, per-workspace session restore</li>
+          <li>Inno Setup installer, portable zip, PowerShell installer and winget manifest</li>
+        </ul>
+        <p class="card-link"><a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.1" rel="noopener">full release notes →</a></p>
+        <p class="card-link dim">previous: <a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.0" rel="noopener">v0.1.0</a> — first public release</p>
+      </article>
+      <article class="card">
+        <h3 class="card-title">Verify what you download</h3>
+        <p>Every release ships a checksum file. Check the binary before you run it:</p>
+        <div class="cmdblock compact">
+          <pre><code>Get-FileHash .\gamma.exe -Algorithm SHA256</code></pre>
+          <button class="copybtn" data-copy="Get-FileHash .\gamma.exe -Algorithm SHA256"><span>copy</span><span role="status" class="copied-note"></span></button>
+        </div>
+        <p>Compare the hash with <a href="https://github.com/zstudio-lab/Gamma-Code/releases/latest/download/SHA256SUMS.txt" rel="noopener">SHA256SUMS.txt</a> attached to the release.</p>
+      </article>
     </div>
   </section>
 
 </main>
 
 <footer aria-label="Site footer">
-  <p>gamma 0.1.0 · MIT · Windows 10 22H2+ / Windows 11 · <a href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">source</a></p>
-  <p class="dim">Built for people who don't want their code on someone else's server.</p>
+  <div class="foot-grid">
+    <div class="foot-col">
+      <p class="foot-h">gamma</p>
+      <p>0.1.1 · MIT</p>
+      <p>Windows 10 22H2+ / Windows 11</p>
+    </div>
+    <div class="foot-col">
+      <p class="foot-h">project</p>
+      <p><a href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">source</a></p>
+      <p><a href="https://github.com/zstudio-lab/Gamma-Code/releases" rel="noopener">releases</a></p>
+      <p><a href="https://github.com/zstudio-lab/Gamma-Code/issues" rel="noopener">issues</a></p>
+    </div>
+    <div class="foot-col">
+      <p class="foot-h">runtime</p>
+      <p><a href="https://ollama.com/download/windows" rel="noopener">ollama for windows</a></p>
+      <p><code>gamma -p "explain main.cpp"</code></p>
+    </div>
+  </div>
+  <p class="dim">Built for people who don’t want their code on someone else’s server.</p>
 </footer>
 </body>
 </html>

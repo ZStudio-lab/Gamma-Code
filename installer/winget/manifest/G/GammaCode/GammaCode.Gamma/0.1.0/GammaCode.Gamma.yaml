@@ -16,9 +16,9 @@ Description: |-
   It talks only to Ollama on 127.0.0.1:11434 - no cloud, no API keys, no
   telemetry. Not the prompt, not the code, not the conversation ever leaves
   the machine. Tools: read_file, write_file/edit_file (unified diff before
-  write, exact-match replacement), glob/grep, run_command (cmd.exe /c or
-  PowerShell via --shell psh), ask_user, and tiered context compaction for
-  long sessions. Permission modes: plan (read-only), ask (default - writes
+  write, exact-match replacement), glob/grep, run_command (cmd.exe /c), and
+  tiered context compaction for long sessions. Permission modes: plan
+  (read-only), ask (default - writes
   and commands prompt y/N with the diff or command shown), auto (run_command
   still prompts unless --yolo). Ollama itself is not bundled.
 Moniker: gamma

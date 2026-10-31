@@ -247,4 +247,15 @@ std::vector<ToolCall> parse_tool_calls_from_text(const std::string& content,
   return calls;
 }
 
+std::size_t streamable_prefix(const std::string& content) {
+  std::size_t limit = content.size();
+  const auto tighten = [&limit](std::size_t at) {
+    if (at != std::string::npos && at < limit) limit = at;
+  };
+  tighten(content.find("```"));
+  tighten(content.find("<tool_call>"));
+  tighten(content.find('{'));
+  return limit;
+}
+
 } // namespace gamma

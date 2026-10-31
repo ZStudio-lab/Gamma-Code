@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(GammaCode VERSION 0.1.0 LANGUAGES CXX)
+project(GammaCode VERSION 0.1.1 LANGUAGES CXX)
 
 # RC for gamma.rc (app icon + version info compiled into gamma.exe).
 if(WIN32)
@@ -32,7 +32,13 @@ FetchContent_Declare(
 find_package(CURL)
 if(NOT CURL_FOUND)
   message(STATUS "system libcurl not found -- building curl via FetchContent")
-  set(CURL_ENABLE_SSL OFF CACHE BOOL "" FORCE) # http://127.0.0.1 is all we need
+  # HTTPS is needed for exactly one thing: downloading the official Ollama
+  # installer on first run. Everything else stays on http://127.0.0.1.
+  set(CURL_ENABLE_SSL ON CACHE BOOL "" FORCE)
+  if(WIN32)
+    # Schannel is built into Windows — no OpenSSL dependency to ship.
+    set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+  endif()
   set(HTTP_ONLY        ON  CACHE BOOL "" FORCE)
   set(CURL_USE_LIBSSH2 OFF CACHE BOOL "" FORCE)
   set(BUILD_CURL_EXE   OFF CACHE BOOL "" FORCE)
@@ -58,6 +64,7 @@ add_executable(gamma
   src/config/config.cpp
   src/config/sessions.cpp
   src/ollama/client.cpp
+  src/setup/ollama_setup.cpp
   src/agent/messages.cpp
   src/agent/formatter.cpp
   src/agent/loop.cpp

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <functional>
@@ -13,6 +14,7 @@
 #include "config/config.hpp"
 #include "config/sessions.hpp"
 #include "ollama/client.hpp"
+#include "setup/ollama_setup.hpp"
 #include "tools/registry.hpp"
 #include "ui/launcher.hpp"
 #include "ui/render.hpp"
@@ -255,6 +257,18 @@ int main(int argc, char** argv) {
 
   gamma::OllamaClient client(options.base_url);
 
+  // Automatic bootstrap: make sure a local server is up (offering to install
+  // Ollama when it is missing), then choose a model. GAMMA_NO_SETUP=1 keeps
+  // the old "bring your own server" behavior for automation.
+  const char* no_setup_env = std::getenv("GAMMA_NO_SETUP");
+  const bool skip_setup =
+      no_setup_env != nullptr && no_setup_env[0] != '\0' && std::string(no_setup_env) != "0";
+  const bool interactive = gamma::setup::stdio_is_interactive();
+  if (!skip_setup && !gamma::setup::ensure_ollama_ready(options.base_url, interactive)) {
+    gamma::ui::restore_window_title();
+    return 1;
+  }
+
   // Startup handshake: fetch /api/tags up front — the launcher needs the
   // installed-model list, and every other check builds on it.
   std::vector<std::string> installed;
@@ -267,11 +281,89 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  const bool model_installed =
+  auto refresh_installed = [&]() {
+    try {
+      installed = client.installed_models();
+    } catch (const std::exception&) {
+      // The pull itself succeeded; keep the model we just chose.
+    }
+  };
+
+  bool model_installed =
       std::find(installed.begin(), installed.end(), options.model) != installed.end();
+
+  if (!options.model_explicit) {
+    if (installed.empty()) {
+      if (!interactive) {
+        gamma::ui::restore_window_title();
+        std::cerr << "gamma: no Ollama models are installed.\n"
+                     "pull one first, e.g. `ollama pull qwen2.5-coder:7b`.\n";
+        return 1;
+      }
+      // First run: pick by hardware, then pull with a live progress bar.
+      const gamma::setup::Hardware hardware = gamma::setup::detect_hardware();
+      const std::string model = gamma::setup::recommended_model(hardware);
+      std::cout << "\n  "
+                << gamma::ui::theme::paint("no models installed", gamma::ui::theme::Role::Warn)
+                << gamma::ui::theme::paint(" · ", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint(gamma::setup::describe_hardware(hardware),
+                                           gamma::ui::theme::Role::Muted)
+                << "\n";
+      if (!gamma::setup::pull_model_with_progress(client, model)) {
+        gamma::ui::restore_window_title();
+        return 1;
+      }
+      options.model = model;
+      refresh_installed();
+      model_installed = true;
+    } else {
+      // Newest tool-capable model wins; /api/tags timestamps are RFC 3339 so
+      // they sort lexicographically. Models that do not advertise "tools"
+      // are skipped (embeddings, vision-only, …).
+      std::vector<gamma::OllamaClient::ModelInfo> models;
+      try {
+        models = client.installed_model_info();
+      } catch (const std::exception&) {
+        models.clear();
+      }
+      std::sort(models.begin(), models.end(),
+                [](const gamma::OllamaClient::ModelInfo& a,
+                   const gamma::OllamaClient::ModelInfo& b) {
+                  return a.modified_at > b.modified_at;
+                });
+      std::string chosen;
+      for (const gamma::OllamaClient::ModelInfo& model : models) {
+        if (client.model_supports_tools(model.name)) {
+          chosen = model.name;
+          break;
+        }
+      }
+      if (chosen.empty() && !models.empty()) chosen = models.front().name;
+      if (!chosen.empty()) {
+        options.model = chosen;
+        model_installed = true;
+        std::cout << "  " << gamma::ui::theme::paint("using ", gamma::ui::theme::Role::Muted)
+                  << gamma::ui::theme::paint_bold(options.model,
+                                                  gamma::ui::theme::Role::Highlight)
+                  << gamma::ui::theme::paint("  (newest installed)",
+                                             gamma::ui::theme::Role::Muted)
+                  << "\n";
+      }
+    }
+  } else if (!model_installed && installed.empty() && interactive) {
+    // Explicit model on a machine with nothing pulled yet: fetch exactly the
+    // model that was asked for instead of failing.
+    if (!gamma::setup::pull_model_with_progress(client, options.model)) {
+      gamma::ui::restore_window_title();
+      return 1;
+    }
+    refresh_installed();
+    model_installed = true;
+  }
+
   if (!model_installed) {
-    // Hard fail for non-interactive paths and when nothing at all is pulled.
-    // Interactively, the launcher offers a live model picker instead.
+    // Hard fail for non-interactive paths. Interactively with other models
+    // present, the launcher offers a live model picker instead.
     if (options.one_shot || options.no_ui || installed.empty()) {
       gamma::ui::restore_window_title();
       std::cerr << "gamma: model '" << options.model

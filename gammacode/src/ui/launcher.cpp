@@ -418,7 +418,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
             ? std::string("(current dir) ") + std::filesystem::current_path().string()
             : options.workspace,
         std::to_string(sessions::saved_sessions().size()) + " saved · pick one to resume",
-        std::string("gamma's system prompt applies automatically — preview below"),
+        std::string("applied to every turn — press Enter to view"),
         "enter the " + theme::paint("γ ❯", Role::Accent) + " REPL",
         "",
     };
@@ -435,10 +435,6 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
     }
 
     std::cout << "\n  " << dim("↑/↓ move · Enter select · N new session · q quit") << "\n\n";
-    std::cout << dim("  system prompt applied to every turn:") << "\n";
-    for (const std::string& line : wrap_pl(system_prompt_text(), 76)) {
-      std::cout << faint("    " + line) << "\n";
-    }
     std::cout.flush();
 
     char ch = 0;
@@ -458,7 +454,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
           }
         } else if (highlight == ModeRow) {
           const std::vector<std::string> mode_rows = {
-              "plan — read_file / list_dir / glob / grep / ask_user only",
+              "plan — read_file / list_dir / glob / grep only",
               "ask  — reads free; write_file, edit_file, run_command ask first",
               "auto — fully automated: reads, writes, edits, commands (default)",
           };
@@ -497,7 +493,16 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
             return true; // Start the REPL with that conversation restored
           }
         } else if (highlight == SystemPrompt) {
-          // informational row — the preview below is the full text already
+          // Dedicated viewer: the prompt text is the whole screen and nothing
+          // else. It is never shown inline in the launcher itself.
+          clear_view();
+          std::cout << "  " << accent("▌") << " " << bold("System prompt") << "\n\n";
+          for (const std::string& line : wrap_pl(system_prompt_text(), 84)) {
+            std::cout << "  " << theme::paint(line, Role::Text) << "\n";
+          }
+          std::cout << "\n  " << dim("press any key to return") << std::flush;
+          char ignored = 0;
+          (void)read_key(ignored);
         } else if (highlight == StartChat) {
           clear_view();
           return true;

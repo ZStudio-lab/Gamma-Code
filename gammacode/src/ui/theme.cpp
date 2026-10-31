@@ -213,4 +213,10 @@ void print_markdown_reply(const std::string& text) {
   }
 }
 
+void print_markdown_continuation(const std::string& text) {
+  for (const std::string& line : render_markdown(text)) {
+    std::cout << (line.empty() ? std::string("") : ("  " + line)) << "\n";
+  }
+}
+
 } // namespace gamma::ui::theme

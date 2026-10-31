@@ -116,10 +116,9 @@ if ($OllamaUp) {
   Write-Host '  ollama  : reachable on 127.0.0.1:11434' -ForegroundColor Green
   Write-Host '  open a new terminal and run:  gamma' -ForegroundColor Cyan
 } else {
-  Write-Host '  ollama  : not reachable on 127.0.0.1:11434.' -ForegroundColor Yellow
-  Write-Host '  Gamma talks only to a local Ollama server (it is never bundled).' -ForegroundColor Yellow
-  Write-Host '  Install Ollama for Windows: https://ollama.com/download/windows' -ForegroundColor Yellow
-  Write-Host '  then pull a model and run:' -ForegroundColor Yellow
-  Write-Host '    ollama pull qwen2.5-coder:7b' -ForegroundColor Yellow
-  Write-Host '    gamma' -ForegroundColor Yellow
+  Write-Host '  ollama  : not running on 127.0.0.1:11434.' -ForegroundColor Yellow
+  Write-Host '  No problem - gamma sets it up on first launch:' -ForegroundColor Cyan
+  Write-Host '    it offers "Install Ollama? [Yes/No]", installs it, pulls a model' -ForegroundColor Cyan
+  Write-Host '    matched to your hardware, and starts ollama serve for you.' -ForegroundColor Cyan
+  Write-Host '  open a new terminal and run:  gamma' -ForegroundColor Cyan
 }

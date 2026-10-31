@@ -15,12 +15,17 @@ Description: |-
   Gamma Code is a local-only, terminal-native AI coding agent for Windows.
   It talks only to Ollama on 127.0.0.1:11434 - no cloud, no API keys, no
   telemetry. Not the prompt, not the code, not the conversation ever leaves
-  the machine. Tools: read_file, write_file/edit_file (unified diff before
-  write, exact-match replacement), glob/grep, run_command (cmd.exe /c or
-  PowerShell via --shell psh), ask_user, and tiered context compaction for
-  long sessions. Permission modes: plan (read-only), ask (default - writes
-  and commands prompt y/N with the diff or command shown), auto (run_command
-  still prompts unless --yolo). Ollama itself is not bundled.
+  the machine. Replies stream live, with tool-call JSON kept behind the
+  normal spinner. Tools: read_file, write_file/edit_file (exact-match
+  replacement that refuses ambiguous matches), list_dir/glob/grep,
+  run_command (cmd.exe /c), and tiered context
+  compaction for long sessions. On first run it offers to install Ollama,
+  pulls the best qwen2.5-coder model for the machine's RAM/VRAM, then starts
+  ollama serve and uses the newest installed tool-capable model. Permission
+  modes: auto (default - hands-free,
+  --no-yolo re-adds the run_command prompt), ask (writes and commands prompt
+  y/N with the diff or command shown), plan (read-only). Ollama itself is not
+  bundled.
 Moniker: gamma
 Tags:
   - windows

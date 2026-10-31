@@ -5,7 +5,7 @@
 #             SHA256SUMS.txt
 #   winget/:  manifest regenerated under the version path, real hashes filled in.
 param(
-  [string]$Version = "0.1.0",
+  [string]$Version = "0.1.1",
   [string]$Iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 )
 $ErrorActionPreference = "Stop"

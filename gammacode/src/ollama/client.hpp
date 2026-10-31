@@ -43,9 +43,28 @@ private:
 };
 
 // Talks to Ollama on 127.0.0.1 (or a loopback base URL validated at startup).
-// This is the only outbound HTTP in gamma — no other calls exist anywhere.
+// This is the only loopback HTTP in gamma; the setup module makes one
+// user-approved HTTPS download of the official Ollama installer.
 class OllamaClient {
 public:
+  // One installed model, as reported by /api/tags. modified_at is RFC 3339,
+  // so it also sorts lexicographically (newest last).
+  struct ModelInfo {
+    std::string name;
+    std::string modified_at;
+    long long size = 0;
+  };
+
+  // One NDJSON event from POST /api/pull: "pulling manifest", a layer's byte
+  // progress (completed/total), "verifying sha256 digest", "success", …
+  struct PullEvent {
+    std::string status;
+    std::string digest;
+    long long completed = 0;
+    long long total = 0;
+  };
+  using PullProgressFn = std::function<void(const PullEvent& event)>;
+
   // Called once per streamed NDJSON chunk with the assistant content
   // accumulated SO FAR — the UI uses it to show what the model is doing
   // right now (thinking / building a tool call / which tool). Returning
@@ -67,6 +86,20 @@ public:
 
   // GET /api/tags → installed model names. Throws GammaError.
   std::vector<std::string> installed_models();
+
+  // GET /api/tags → exact names with modified_at and size. Used at startup to
+  // pick the most recently updated model when none was requested explicitly.
+  std::vector<ModelInfo> installed_model_info();
+
+  // POST /api/pull, streamed. Blocks until the pull finishes; progress() is
+  // called for every NDJSON event (status lines and byte progress). Throws
+  // GammaError on a wire failure or an {"error": …} event.
+  void pull_model(const std::string& model, const PullProgressFn& progress = nullptr);
+
+  // POST /api/show → whether the model advertises the "tools" capability.
+  // Ollama builds that omit capabilities are treated as tool-capable (that
+  // was the only kind of model those builds could run).
+  bool model_supports_tools(const std::string& model);
 
   const std::string& base_url() const { return base_url_; }
 

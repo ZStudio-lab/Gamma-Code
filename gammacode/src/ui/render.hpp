@@ -1,6 +1,8 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
+#include <functional>
 #include <string>
 #include <thread>
 
@@ -48,6 +50,12 @@ void print_tool_result(bool ok, const std::string& output, const std::string& er
 
 // The model's final text, prefixed with a cyan bullet.
 void print_assistant_message(const std::string& text);
+
+// The REMAINDER of a reply whose beginning was already streamed live: same
+// markdown-lite styling and indentation, no second bullet. Used when what the
+// stream could not show safely (a code fence, a tool-call marker) is printed
+// once the message is complete.
+void print_assistant_continuation(const std::string& text);
 
 // Approval prompt used by the permission gate: a bordered proposal box
 // (Claude Code-style) then a y/N read on stdin.
@@ -107,6 +115,46 @@ class StreamStopWindow {
 // started. Latched: once true it stays true until the next StreamStopWindow
 // opens. Call it repeatedly from the streaming progress hook.
 bool stop_output_pressed();
+
+// Live assistant prose. feed() is called with the text accumulated so far on
+// every streamed chunk; it prints only the newly SAFE bytes (the leading
+// prefix that cannot be a tool call — see agent::streamable_prefix), so the
+// reply appears in real time while any fence / <tool_call> / bare-JSON region
+// is held back. Tool-call JSON therefore never leaks into the transcript and
+// the spinner keeps its normal behavior for tool-only responses.
+//
+// The first printed chunk stops the spinner and wipes its line before any
+// text is written (via the `before_first` hook), so the two never collide.
+// finish() ends the live message with a newline; it is idempotent and runs
+// from the destructor too.
+class StreamPrinter {
+ public:
+  using BeforeFirstFn = std::function<void()>;
+
+  explicit StreamPrinter(BeforeFirstFn before_first = {});
+  ~StreamPrinter();
+  StreamPrinter(const StreamPrinter&) = delete;
+  StreamPrinter& operator=(const StreamPrinter&) = delete;
+
+  void feed(const std::string& accumulated_content);
+
+  // Bytes of the accumulated content already printed (the safe prefix).
+  std::size_t shown() const { return shown_; }
+
+  // True once at least one byte of prose has been shown live.
+  bool wrote() const { return wrote_; }
+
+  void finish();
+
+ private:
+  void emit(const std::string& text);
+
+  BeforeFirstFn before_first_;
+  std::size_t shown_ = 0;
+  bool wrote_ = false;
+  bool line_start_ = true;
+  bool finished_ = false;
+};
 
 // Maps the assistant text accumulated so far (from a streamed /api/chat
 // response) to a one-line status: the most recent tool the model is building

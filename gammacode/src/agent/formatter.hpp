@@ -23,4 +23,11 @@ namespace gamma {
 std::vector<ToolCall> parse_tool_calls_from_text(const std::string& content,
                                                  std::string& textual_remainder);
 
+// Live-streaming: how many LEADING bytes of `content` are safe to show as
+// message text while the reply is still arriving. Everything from the first
+// potential tool-call opener onward is held back — a fence, a tool-call tag,
+// or a bare `{` (pass 3 of the parser treats bare JSON objects as commands,
+// so a `{` must wait until the finished parse proves it is prose).
+std::size_t streamable_prefix(const std::string& content);
+
 } // namespace gamma

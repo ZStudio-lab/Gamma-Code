@@ -1,4 +1,5 @@
-// Gamma Code site — vanilla JS only: typewriter, copy buttons, method tabs.
+// Gamma Code site — vanilla JS only: demo video playback policy, copy buttons,
+// method tabs, sticky-header state, scroll reveal.
 // Everything degrades fine if this file fails to load (static content shown).
 
 (function () {
@@ -7,42 +8,18 @@
   var reducedMotion = window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* ─────────────── typewriter ─────────────── */
+  /* ─────────────── demo video ─────────────── */
 
-  // Types the one hero prompt line. With reduced motion the full text is
-  // shown immediately, no animation.
-  function tw() {
-    var el = document.getElementById("typed");
-    if (!el) return;
-    var text = el.getAttribute("data-text") || "";
+  // The hero shows a real capture of the app (Gamma.mp4), autoplaying muted
+  // and looping like a product demo. With prefers-reduced-motion we must not
+  // move things on our own: pause it and hand the user the controls instead.
+  function initDemoVideo() {
+    var video = document.querySelector("video.term-video");
+    if (!video) return;
     if (reducedMotion) {
-      el.textContent = text;
-      revealExchanges();
-      return;
-    }
-    var i = 0;
-    var speed = 34; // ms per char
-    (function step() {
-      if (i <= text.length) {
-        el.textContent = text.slice(0, i);
-        i += 1;
-        window.setTimeout(step, speed);
-      } else {
-        revealExchanges();
-      }
-    })();
-  }
-
-  // The exchange lines under the typed prompt stay invisible until the
-  // prompt is fully typed (or immediately, with reduced motion).
-  function revealExchanges() {
-    var lines = document.querySelectorAll(".exchange");
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      var delay = reducedMotion ? 0 : 140 * i;
-      window.setTimeout(function (node) {
-        node.classList.add("on");
-      }.bind(null, line), delay);
+      video.removeAttribute("autoplay");
+      video.pause();
+      video.controls = true;
     }
   }
 
@@ -146,12 +123,60 @@
     });
   }
 
+  /* ─────────────── sticky header state ─────────────── */
+
+  // Adds .scrolled to the header once the page has moved off the top, so
+  // the bottom border appears only when content is scrolling under it.
+  function initHeader() {
+    var head = document.querySelector(".site-head");
+    if (!head) return;
+    function update() {
+      head.classList.toggle("scrolled", window.pageYOffset > 4);
+    }
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+  }
+
+  /* ─────────────── scroll reveal ─────────────── */
+
+  // Cards and section heads fade in as they enter the viewport. The .reveal
+  // class is added here (not in markup) so content is fully visible if JS
+  // never runs. Reduced motion shows everything immediately.
+  function initReveal() {
+    var targets = document.querySelectorAll(
+      ".card, .banner, .release-strip, .tiers, .tablewrap, .diagram, .reqs, .smartscreen"
+    );
+    if (!targets.length) return;
+
+    if (reducedMotion || !("IntersectionObserver" in window)) {
+      return; // no .reveal added => content stays visible
+    }
+
+    for (var i = 0; i < targets.length; i++) {
+      targets[i].classList.add("reveal");
+    }
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("in");
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+
+    for (var j = 0; j < targets.length; j++) {
+      observer.observe(targets[j]);
+    }
+  }
+
   /* ─────────────── boot ─────────────── */
 
   function init() {
-    tw();
+    initDemoVideo();
     initCopyButtons();
     initTabs();
+    initHeader();
+    initReveal();
   }
 
   if (document.readyState === "loading") {

@@ -67,4 +67,10 @@ std::vector<std::string> render_markdown(const std::string& text);
 // Prints it with an Accent bullet and line indentation — the assistant turn.
 void print_markdown_reply(const std::string& text);
 
+// Prints the REST of a reply whose beginning was already streamed live: same
+// markdown-lite styling and indentation, but no second bullet. Used when a
+// stream stopped at a code fence / tool-call marker and the tail is rendered
+// once the message is complete.
+void print_markdown_continuation(const std::string& text);
+
 } // namespace gamma::ui::theme
