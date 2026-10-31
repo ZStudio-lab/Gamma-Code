@@ -21,3 +21,6 @@ installer/out/
 .idea/
 Thumbs.db
 Desktop.ini
+
+# Reference checkout of OpenCode (study only — never part of this repo)
+opencode-dev/

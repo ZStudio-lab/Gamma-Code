@@ -39,7 +39,7 @@ Installers:
   - Architecture: x64
     InstallerType: inno
     InstallerUrl: https://github.com/ZStudio-lab/Gamma-Code/releases/download/v0.1.1/Gamma-0.1.1-setup.exe
-    InstallerSha256: da441a3ad8ba4808a05b87abea4e3f175f45d4d27c9e9461ea72ae069e08a7ef
+    InstallerSha256: 1ed686d71443562598072790be9f100fa514e49952ee1edf65a1a8f1244e919a
     InstallerSwitches:
       Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
       SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART
