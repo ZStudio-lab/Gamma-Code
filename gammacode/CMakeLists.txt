@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(GammaCode VERSION 0.1.2 LANGUAGES CXX)
+project(GammaCode VERSION 0.1.3 LANGUAGES CXX)
 
 # RC for gamma.rc (app icon + version info compiled into gamma.exe).
 if(WIN32)

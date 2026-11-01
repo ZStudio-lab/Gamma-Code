@@ -4,7 +4,7 @@
 ; SHA-256 against CHECKSUM.txt after the files are in place.
 
 #define public AppName "Gamma Code"
-#define public AppVersion "0.1.2"
+#define public AppVersion "0.1.3"
 #define public AppId "6FA0DE35-3C8E-4B27-9C58-52E793F7A0B4"
 
 [Setup]
@@ -32,6 +32,7 @@ UninstallDisplayIcon={app}\gamma.exe
 [Files]
 Source: "..\staging\gamma.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\staging\CHECKSUM.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\staging\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
 
 [Code]
 

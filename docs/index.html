@@ -299,7 +299,7 @@ winget install --manifest "$env:TEMP\GammaCode.Gamma.yaml" --accept-package-agre
 irm "https://raw.githubusercontent.com/ZStudio-lab/Gamma-Code/main/installer/winget/manifest/G/GammaCode/GammaCode.Gamma/$v/GammaCode.Gamma.yaml" -OutFile "$env:TEMP\GammaCode.Gamma.yaml"
 winget install --manifest "$env:TEMP\GammaCode.Gamma.yaml" --accept-package-agreements --accept-source-agreements'><span>copy</span><span role="status" class="copied-note"></span></button>
       </div>
-      <p class="note">Downloads the signed-off manifest from this repo, then winget fetches the installer from GitHub Releases and verifies its SHA-256 before running it. Bump <code>$v</code> to upgrade. No community winget submission needed.</p>
+      <p class="note">Downloads the manifest from this repo, then winget fetches the installer from GitHub Releases and verifies its SHA-256 before running it. Bump <code>$v</code> to upgrade. No community winget submission needed. If winget replies that local manifests are disabled, run <code>winget settings --enable LocalManifestFiles</code> once as administrator.</p>
     </div>
 
     <div role="tabpanel" id="panel-msi" aria-labelledby="tab-msi" hidden>

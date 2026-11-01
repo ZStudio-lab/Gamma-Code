@@ -95,6 +95,9 @@ irm "https://raw.githubusercontent.com/ZStudio-lab/Gamma-Code/main/installer/win
 winget install --manifest "$env:TEMP\GammaCode.Gamma.yaml" --accept-package-agreements --accept-source-agreements
 ```
 
+If winget replies that local manifests are disabled, run
+`winget settings --enable LocalManifestFiles` once as administrator.
+
 To build from source:
 
 ```powershell
