@@ -106,4 +106,32 @@ std::string session_display_name(const std::string& path) {
   return leaf + " · " + stamp + " · " + std::to_string(messages) + " msgs";
 }
 
+bool delete_session(const std::string& path) {
+  namespace fs = std::filesystem;
+  // Guard: refuse anything outside the sessions directory, whatever the
+  // caller (a webview message is untrusted input).
+  std::error_code error;
+  const fs::path sessions = fs::weakly_canonical(sessions_dir(), error);
+  const fs::path wanted = fs::weakly_canonical(fs::path(path), error);
+  const std::string prefix = sessions.string() + static_cast<char>(fs::path::preferred_separator);
+  const std::string wanted_text = wanted.string();
+  if (!wanted_text.starts_with(prefix)) return false;
+  const bool existed = fs::exists(wanted, error);
+  fs::remove(wanted, error);
+  return existed && !error;
+}
+
+std::size_t delete_all_sessions() {
+  namespace fs = std::filesystem;
+  std::error_code error;
+  fs::directory_iterator it(sessions_dir(), error);
+  if (error) return 0;
+  std::size_t removed = 0;
+  for (const fs::directory_entry& entry : it) {
+    if (entry.path().extension() != ".json") continue;
+    if (fs::remove(entry.path(), error) && !error) ++removed;
+  }
+  return removed;
+}
+
 } // namespace gamma::sessions

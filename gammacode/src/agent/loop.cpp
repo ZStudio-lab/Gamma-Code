@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "agent/messages.hpp"
+#include "agent/formatter.hpp"
 #include "ui/render.hpp"
 
 namespace gamma {
@@ -22,21 +23,23 @@ const char* kSystemPromptText = R"SYSTEM_PROMPT(
 You are gamma, a coding agent operating in a terminal. You complete coding
 tasks by acting, not by narrating.
 
-TOOLS — your only capabilities:
-  read_file(path, start_line?, end_line?)   numbered lines; large reads are capped with an
-                                            exact "read this range next" marker — follow it
-  write_file(path, content)                 create or overwrite a file (parents created)
-  edit_file(path, old_string, new_string,   exact replace; replace_all:true changes every
-            replace_all?)                   occurrence; line endings and indentation are
-                                            matched tolerantly — copy text from read_file
-  list_dir(path?)                           list a directory
-  glob(pattern, path?)                      find files (build/dependency dirs are skipped)
-  grep(pattern, path?, glob?)               regex search (binaries and build/dependency
-                                            dirs are skipped; results are capped)
+TOOLS — your only capabilities. Call each tool with a JSON arguments object
+of exactly this shape (keys marked ? are optional):
+  read_file    {"path": "src/app.cpp", "start_line"?: 1, "end_line"?: 120}
+  write_file   {"path": "src/new.cpp", "content": "...full file text..."}
+  edit_file    {"path": "src/app.cpp", "old_string": "...exact text...",
+                "new_string": "...replacement...", "replace_all"?: false}
+  list_dir     {"path"?: "src"}
+  glob         {"pattern": "src/**/*.cpp", "path"?: "src"}
+  grep         {"pattern": "TODO|FIXME", "path"?: "src", "glob"?: "*.cpp"}
+  run_command  {"cmd": "cmake --build build", "timeout_seconds"?: 300}
+  ask          {"question": "Which port?", "options"?: ["8080", "9000"]}
+  web_search   {"query": "C++20 concepts guide", "max_results"?: 5}
 
 RULES:
 1. Use ONLY the tools listed above. Never invent, guess, or reference tools
-   that do not exist in this list, and never simulate tool output.
+   that do not exist in this list, and never simulate tool output. Match the
+   argument shapes above exactly — extra or misspelled keys are rejected.
 2. NEVER tell the user to copy, paste, or manually apply code. If a change
    belongs in a file, perform it yourself with edit_file or write_file.
    Code you show in a reply is a snippet for explanation only — any change
@@ -48,9 +51,15 @@ RULES:
    and results are shown to the user automatically — do not paste tool
    output or long file contents back into your reply; keep replies short
    and say what changed and why.
-5. Execute actions directly and without hesitation. If a task needs
-   information only the user has, ask for it precisely in your reply
-   instead of guessing.)SYSTEM_PROMPT";
+5. If a task needs a decision only the user can make, call ask with a
+   specific question and concrete options instead of guessing. For facts
+   the codebase cannot answer (docs, versions, error messages), use
+   web_search — the query leaves the machine, so keep it free of code and
+   secrets.
+6. Large projects: scans (glob, grep) already skip .git, dependency folders
+   and gitignored paths, and long results come back capped with a hint.
+   When results are capped, narrow the search instead of retrying it —
+   grep a subfolder, glob a stricter pattern, or read a specific range.)SYSTEM_PROMPT";
 
 constexpr int kMaxIterations = 40;
 constexpr std::size_t kToolResultLimit = 8 * 1024; // 8 KB
@@ -114,12 +123,18 @@ bool AgentLoop::compact(bool force) {
   if (trimmed > 0) {
     changed = true;
     total = estimate_history_tokens(history_);
-    std::cout << "  " << gamma::ui::theme::paint("► compacted", gamma::ui::theme::Role::Accent)
-              << gamma::ui::theme::paint(": trimmed ", gamma::ui::theme::Role::Muted)
-              << gamma::ui::theme::paint_bold(std::to_string(trimmed), gamma::ui::theme::Role::Highlight)
-              << gamma::ui::theme::paint(" old tool result(s) · ≈", gamma::ui::theme::Role::Muted)
-              << gamma::ui::theme::paint_bold(std::to_string(total), gamma::ui::theme::Role::Highlight)
-              << gamma::ui::theme::paint(" tokens", gamma::ui::theme::Role::Muted) << "\n";
+    if (sink_ != nullptr) {
+      sink_->on_notice("compacted: trimmed " + std::to_string(trimmed) +
+                       " old tool result(s) · ≈" + std::to_string(total) + " tokens",
+                       false);
+    } else {
+      std::cout << "  " << gamma::ui::theme::paint("► compacted", gamma::ui::theme::Role::Accent)
+                << gamma::ui::theme::paint(": trimmed ", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(trimmed), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint(" old tool result(s) · ≈", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(total), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint(" tokens", gamma::ui::theme::Role::Muted) << "\n";
+    }
   }
 
   // Tier B: summarize everything except the system prompt and the last few
@@ -158,11 +173,15 @@ bool AgentLoop::compact(bool force) {
       try {
         summary_message = client_.chat(request, [](const std::string&) { return true; });
       } catch (const std::exception& error) {
-        std::cout << "  "
-                  << gamma::ui::theme::paint("✗ compaction summary failed (" + std::string(error.what()) +
-                                          "); only tool results were trimmed.",
-                                      gamma::ui::theme::Role::Error)
-                  << "\n";
+        const std::string notice = "compaction summary failed (" + std::string(error.what()) +
+                                   "); only tool results were trimmed.";
+        if (sink_ != nullptr) {
+          sink_->on_notice(notice, true);
+        } else {
+          std::cout << "  "
+                    << gamma::ui::theme::paint("✗ " + notice, gamma::ui::theme::Role::Error)
+                    << "\n";
+        }
         return changed;
       }
     }
@@ -185,14 +204,20 @@ bool AgentLoop::compact(bool force) {
     trim_tool_results(0, 600);
     const long after = estimate_history_tokens(history_);
     changed = true;
-    std::cout << "  " << gamma::ui::theme::paint("► compacted", gamma::ui::theme::Role::Accent)
-              << gamma::ui::theme::paint(": ", gamma::ui::theme::Role::Muted)
-              << gamma::ui::theme::paint_bold(std::to_string(history_.size() - 1), gamma::ui::theme::Role::Highlight)
-              << gamma::ui::theme::paint(" exchanges summarized · ≈", gamma::ui::theme::Role::Muted)
-              << gamma::ui::theme::paint_bold(std::to_string(before), gamma::ui::theme::Role::Highlight)
-              << gamma::ui::theme::paint("→", gamma::ui::theme::Role::Muted)
-              << gamma::ui::theme::paint_bold(std::to_string(after), gamma::ui::theme::Role::Highlight)
-              << gamma::ui::theme::paint(" tokens", gamma::ui::theme::Role::Muted) << "\n";
+    if (sink_ != nullptr) {
+      sink_->on_notice("compacted: " + std::to_string(history_.size() - 1) +
+                       " exchanges summarized · ≈" + std::to_string(before) + "→" +
+                       std::to_string(after) + " tokens", false);
+    } else {
+      std::cout << "  " << gamma::ui::theme::paint("► compacted", gamma::ui::theme::Role::Accent)
+                << gamma::ui::theme::paint(": ", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(history_.size() - 1), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint(" exchanges summarized · ≈", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(before), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint("→", gamma::ui::theme::Role::Muted)
+                << gamma::ui::theme::paint_bold(std::to_string(after), gamma::ui::theme::Role::Highlight)
+                << gamma::ui::theme::paint(" tokens", gamma::ui::theme::Role::Muted) << "\n";
+    }
   }
   return changed;
 }
@@ -329,11 +354,15 @@ bool AgentLoop::run_turn(const std::string& user_text) {
   std::string last_error;
   for (;;) {
     if (++iterations > kMaxIterations) {
-      std::cout << "  "
-                << gamma::ui::theme::paint("⚠ per-turn iteration cap (" + std::to_string(kMaxIterations) +
-                                    ") reached; stopping this turn so nothing spins forever.",
-                                    gamma::ui::theme::Role::Warn)
-                << "\n";
+      const std::string notice = "per-turn iteration cap (" + std::to_string(kMaxIterations) +
+                                 ") reached; stopping this turn so nothing spins forever.";
+      if (sink_ != nullptr) {
+        sink_->on_notice(notice, false);
+      } else {
+        std::cout << "  "
+                  << gamma::ui::theme::paint("⚠ " + notice, gamma::ui::theme::Role::Warn)
+                  << "\n";
+      }
       return false;
     }
 
@@ -350,19 +379,38 @@ bool AgentLoop::run_turn(const std::string& user_text) {
       // Live prose: safe chunks print as they arrive; the first one stops the
       // spinner before touching stdout so the two never overwrite each other.
       ui::StreamPrinter printer([&spinner] { spinner.stop(); });
-      spinner.start();
+      if (sink_ == nullptr) spinner.start(); // console-only visuals
+      std::string last_label;                // webview sink: deduped status
+      std::size_t last_shown = 0;            // webview sink: deduped prefix
       try {
         // Streaming chat: prose is shown in real time, while the indicator's
         // label tracks what the model is doing whenever there is no prose yet
         // (notably while it builds a tool call); ESC stops the whole answer.
         assistant =
             client_.chat(build_request(),
-                         [&spinner, &printer, &user_stopped](const std::string& content) {
-                           printer.feed(content);
-                           if (!printer.wrote()) {
-                             spinner.set_label(ui::stream_status(content));
+                         [&, this](const std::string& content) {
+                           if (sink_ != nullptr) {
+                             // Webview front-end: the same stream-safe prefix
+                             // rule the console printer applies.
+                             const std::size_t shown = streamable_prefix(content);
+                             if (shown != last_shown) {
+                               sink_->on_delta(content.substr(0, shown));
+                               last_shown = shown;
+                             }
+                             const std::string label = ui::stream_status(content);
+                             if (label != last_label) {
+                               sink_->on_status(label);
+                               last_label = label;
+                             }
+                           } else {
+                             printer.feed(content);
+                             if (!printer.wrote()) {
+                               spinner.set_label(ui::stream_status(content));
+                             }
                            }
-                           const bool keep = !ui::stop_output_pressed();
+                           const bool keep = (sink_ != nullptr)
+                                                 ? !ui::external_stop_pressed()
+                                                 : !ui::stop_output_pressed();
                            if (!keep) user_stopped = true;
                            return keep;
                          });
@@ -378,9 +426,13 @@ bool AgentLoop::run_turn(const std::string& user_text) {
         history_.push_back(std::move(note));
         // Same failure repeated: show it the first few times only, cap noise.
         if (error.what() != last_error || iterations <= 3) {
-          std::cout << "  " << gamma::ui::theme::paint("✗ ollama error: " + std::string(error.what()),
-                                                 gamma::ui::theme::Role::Error)
-                    << "\n";
+          if (sink_ != nullptr) {
+            sink_->on_notice(std::string("ollama error: ") + error.what(), true);
+          } else {
+            std::cout << "  " << gamma::ui::theme::paint("✗ ollama error: " + std::string(error.what()),
+                                                   gamma::ui::theme::Role::Error)
+                      << "\n";
+          }
         }
         last_error = error.what();
         continue;
@@ -393,11 +445,16 @@ bool AgentLoop::run_turn(const std::string& user_text) {
       // A stopped response is only a partial thought. Its text stays in
       // history (visible below), but planning a tool call from a truncated
       // stream is unsafe, so NOTHING in it executes.
-      std::cout << "  "
-                << gamma::ui::theme::paint("(output stopped — ESC) · any tool calls in that response "
-                                    "were not executed",
-                                    gamma::ui::theme::Role::Warn)
-                << "\n";
+      if (sink_ != nullptr) {
+        sink_->on_notice("output stopped — any tool calls in that response were not executed",
+                         false);
+      } else {
+        std::cout << "  "
+                  << gamma::ui::theme::paint("(output stopped — ESC) · any tool calls in that response "
+                                     "were not executed",
+                                     gamma::ui::theme::Role::Warn)
+                  << "\n";
+      }
       assistant.tool_calls.clear();
     }
 
@@ -407,6 +464,10 @@ bool AgentLoop::run_turn(const std::string& user_text) {
       // Live streaming already showed the safe prefix (all of it for plain
       // prose). Print only what was held back — a fence or trailing text — so
       // the final answer is never duplicated; nothing streamed ⇒ full reply.
+      if (sink_ != nullptr) {
+        sink_->on_final(assistant.content);
+        return true;
+      }
       if (streamed == 0) {
         ui::print_assistant_message(assistant.content);
       } else if (streamed < assistant.content.size()) {
@@ -429,7 +490,11 @@ bool AgentLoop::run_turn(const std::string& user_text) {
         continue;
       }
 
-      ui::print_tool_call(call.name, call.arguments);
+      if (sink_ != nullptr) {
+        sink_->on_tool(call.name, call.arguments);
+      } else {
+        ui::print_tool_call(call.name, call.arguments);
+      }
       const bool approved =
           tools::permitted(*tool, call.arguments, options_.mode, options_.yolo, confirm_);
       if (!approved) {
@@ -448,7 +513,11 @@ bool AgentLoop::run_turn(const std::string& user_text) {
         result.error = std::string("tool crashed: ") + error.what();
       }
       append_tool_result(tool, call.name, result);
-      ui::print_tool_result(result.ok, result.output, result.error);
+      if (sink_ != nullptr) {
+        sink_->on_tool_result(call.name, result.ok);
+      } else {
+        ui::print_tool_result(result.ok, result.output, result.error);
+      }
     }
     // Loop back: history now contains the assistant tool calls plus their
     // results, so the model sees the effects and continues. (Context

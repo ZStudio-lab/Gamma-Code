@@ -5,11 +5,13 @@
 #include "agent/formatter.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <iostream>
 #include <mutex>
@@ -358,8 +360,16 @@ bool ask_yes_no(const std::string& proposal) {
   return !answer.empty() && (answer[0] == 'y' || answer[0] == 'Y');
 }
 
+// Front-end override for the ask tool (the native webview chat shows its own
+// question dialog). Null = the console picker below stays the default.
+std::function<UserAnswer(const std::string&, const std::vector<std::string>&)>
+    g_question_handler;
+
+void set_question_handler(QuestionFn handler) { g_question_handler = std::move(handler); }
+
 UserAnswer ask_user_question(const std::string& question,
                              const std::vector<std::string>& options) {
+  if (g_question_handler) return g_question_handler(question, options);
   const std::vector<std::string> lines = split_lines(question);
   std::cout << "\n";
   std::cout << theme::frame_titled("question", Role::Accent, lines) << "\n";
@@ -584,6 +594,16 @@ void Spinner::stop() {
 bool g_stop_latched = false; // one ESC press stops the WHOLE answer
 #endif
 
+// Raised by non-console front-ends (the native webview chat's Stop button);
+// stop_output_pressed() consumes it exactly like a key press.
+std::atomic<bool> g_external_stop{false};
+
+void request_output_stop() { g_external_stop = true; }
+
+void clear_output_stop() { g_external_stop = false; }
+
+bool external_stop_pressed() { return g_external_stop.exchange(false); }
+
 StreamStopWindow::StreamStopWindow() {
 #ifdef _WIN32
   g_stop_latched = false; // fresh request, fresh stop latch
@@ -609,7 +629,10 @@ StreamStopWindow::~StreamStopWindow() {
 
 bool stop_output_pressed() {
 #ifdef _WIN32
-  if (g_stop_latched) return true;
+  if (g_stop_latched || g_external_stop.exchange(false)) {
+    g_stop_latched = true;
+    return true;
+  }
   if (_kbhit()) {
     const int code = _getch();
     if (code == 27 || code == 3) { // ESC or Ctrl+C

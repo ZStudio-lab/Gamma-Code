@@ -454,7 +454,7 @@ bool launcher(Options& options, const std::vector<std::string>& ollama_models) {
           }
         } else if (highlight == ModeRow) {
           const std::vector<std::string> mode_rows = {
-              "plan — read_file / list_dir / glob / grep only",
+              "plan — read-only tools + ask (nothing writes)",
               "ask  — reads free; write_file, edit_file, run_command ask first",
               "auto — fully automated: reads, writes, edits, commands (default)",
           };

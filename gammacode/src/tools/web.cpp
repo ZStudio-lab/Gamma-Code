@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <mutex>
 #include <string>
 
@@ -41,22 +43,26 @@ std::string url_encode(const std::string& text) {
 }
 
 std::string html_unescape(std::string text) {
-  auto replace_all = [&text](const char* from, const char* to) {
+  auto replace_all = [&text](const std::string& from, const std::string& to) {
+    if (from.empty()) return;
     std::size_t at = text.find(from);
     while (at != std::string::npos) {
-      text.replace(at, std::string(from).size(), to);
-      at = text.find(from, at + std::string(to).size());
+      text.replace(at, from.size(), to);
+      at = text.find(from, at + to.size());
     }
   };
-  replace_all("&", "&");
-  replace_all("<", "<");
-  replace_all(">", ">");
-  replace_all(""", "\"");
-  replace_all("&#x27;", "'");
-  replace_all("&#39;", "'");
-  replace_all("&nbsp;", " ");
-  replace_all("&hellip;", "…");
-  replace_all("&mdash;", "—");
+  // Entities are built at runtime: "&"+"amp;" — so the needles survive any
+  // tooling that would otherwise decode them inside this source file.
+  const std::string amp = "&";
+  replace_all(amp + "quot;", "\"");
+  replace_all(amp + "#x27;", "'");
+  replace_all(amp + "#39;", "'");
+  replace_all(amp + "nbsp;", " ");
+  replace_all(amp + "hellip;", "…");
+  replace_all(amp + "mdash;", "—");
+  replace_all(amp + "lt;", "<");
+  replace_all(amp + "gt;", ">");
+  replace_all(amp + "amp;", "&"); // last: &lt; ends up as "<", never "<"
   // numeric references: &#8594; and &#x2192;
   for (std::size_t at = text.find("&#"); at != std::string::npos;
        at = text.find("&#", at + 1)) {

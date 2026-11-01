@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gamma Code — local-only terminal coding agent for Windows</title>
-<meta name="description" content="Gamma Code is a local-only, terminal-native AI coding agent for Windows. One installer, no toolchain. Streams replies live, talks only to Ollama on 127.0.0.1 — no cloud, no API keys, no telemetry.">
+<meta name="description" content="Gamma Code is a local-first, terminal-native AI coding agent for Windows. One installer, no toolchain. Streams replies live, model traffic on 127.0.0.1 only — no cloud inference, no API keys, no telemetry.">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0c0c0c">
 <link rel="canonical" href="https://zstudio-lab.github.io/Gamma-Code/">
 <meta property="og:title" content="Gamma Code — local-only terminal coding agent for Windows">
-<meta property="og:description" content="No cloud, no keys, no telemetry. Streams replies live, edits with diff review, and talks only to Ollama on 127.0.0.1. One install, no C++ toolchain.">
+<meta property="og:description" content="Model traffic stays on 127.0.0.1 — no cloud inference, no API keys, no telemetry. Streams replies live, edits with diff review. One install, no C++ toolchain.">
 <meta property="og:url" content="https://zstudio-lab.github.io/Gamma-Code/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Gamma Code — local-only terminal coding agent for Windows">
-<meta name="twitter:description" content="Local-only, streams replies live, Ollama on 127.0.0.1. No cloud, no keys, no telemetry.">
+<meta name="twitter:description" content="Model traffic on 127.0.0.1 only, streams replies live. No cloud inference, no API keys, no telemetry.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/main.js" defer></script>
@@ -50,8 +50,8 @@
     <div class="hero-copy">
       <p class="kicker">// local-first · windows-only · C++20</p>
       <h1>A local-only coding agent that lives in Windows&nbsp;Terminal.</h1>
-      <p class="subline">One installer. No toolchain. Ollama on <code>127.0.0.1</code>.
-        Replies stream live — no cloud, no keys, no telemetry.</p>
+      <p class="subline">One installer. No toolchain. Model traffic on <code>127.0.0.1</code>.
+        Replies stream live — no cloud inference, no keys, no telemetry.</p>
       <div class="cta-row">
         <a class="btn primary" href="#install">Download for Windows</a>
         <a class="btn ghost" href="https://github.com/zstudio-lab/Gamma-Code" rel="noopener">View source</a>
@@ -60,7 +60,7 @@
         <a href="https://github.com/zstudio-lab/Gamma-Code/releases/tag/v0.1.2" rel="noopener">latest release</a>
         <span class="dim">· MIT · Windows 10 22H2+ / 11</span></p>
       <ul class="hero-facts" aria-label="Key facts">
-        <li><span class="fact-n">7</span> tools — read, write, edit, list, glob, grep, run</li>
+        <li><span class="fact-n">9</span> tools — read, write, edit, list, glob, grep, run, ask, search</li>
         <li><span class="fact-n">live</span> streaming replies; <kbd>Esc</kbd> stops output mid-answer</li>
         <li><span class="fact-n">0</span> model calls beyond <code>127.0.0.1:11434</code> — prompts and code never leave</li>
       </ul>
@@ -84,9 +84,10 @@
 
   <!-- ─────────────────────── local-only banner ─────────────────────── -->
   <section class="banner" aria-label="Local-only guarantee">
-    <p><strong>Nothing leaves your machine.</strong> Not the prompt, not the code, not the conversation.
-    Loopback-only is enforced in the binary, not just documented: a non-local <code>--ollama-url</code> refuses to start.
-    The one external request is the official Ollama installer on first run — and only after you answer yes.</p>
+    <p><strong>Model traffic never leaves your machine.</strong> Prompts, code and conversations
+    stay on <code>127.0.0.1:11434</code>, enforced in the binary: a non-local <code>--ollama-url</code> refuses to start.
+    Two things ever reach the internet: the first-run Ollama installer (after you answer yes) and
+    the <code>web_search</code> tool — set <code>GAMMA_NO_WEB=1</code> to remove it for strictly local-only runs.</p>
   </section>
 
   <!-- ─────────────────────── release highlights ─────────────────────── -->
@@ -138,6 +139,12 @@ stdout: 31 passed; 0 failed
 stderr: (empty)</code></pre>
       </article>
       <article class="card">
+        <h3 class="card-title"><code class="toolname">ask</code> <code class="toolname">web_search</code></h3>
+        <p><code>ask</code> pauses the REPL for a human decision (concrete options offered) and feeds the answer straight back to the model. <code>web_search</code> runs a DuckDuckGo lookup — the one outbound tool, removed with <code>GAMMA_NO_WEB=1</code> for strictly local-only runs.</p>
+<pre><code>> ask question="Ship as 0.2 or wait?"
+  1. Ship 0.2 now   2. Wait</code></pre>
+      </article>
+      <article class="card">
         <h3 class="card-title">Live streaming</h3>
         <p>Assistant prose prints token by token, with markdown-aware styling. Tool-call JSON stays behind the normal spinner — so you see the model think, not its raw wire format. <kbd>Esc</kbd> or <kbd>Ctrl</kbd>+<kbd>C</kbd> stops the answer mid-stream.</p>
 <pre><code><span class="spinner-glyph">✻</span> <span class="mut">editing a file… (2s)</span>
@@ -180,7 +187,7 @@ stderr: (empty)</code></pre>
         <h3>plan</h3>
         <p class="mode-desc">Read-only.</p>
         <ul>
-          <li>reads, listing, search: allowed</li>
+          <li>reads, listing, search, <code>ask</code>, <code>web_search</code>: allowed</li>
           <li>writes and commands: denied with an explanatory tool error</li>
           <li>enable with <code>--mode plan</code></li>
         </ul>
@@ -193,7 +200,7 @@ stderr: (empty)</code></pre>
           <tr><th scope="col">operation</th><th scope="col">auto <span class="pill pill-amber">default</span></th><th scope="col">ask</th><th scope="col">plan</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>read_file</code> · <code>list_dir</code> · <code>glob</code> · <code>grep</code></td><td class="yes">run</td><td class="yes">run</td><td class="yes">run</td></tr>
+          <tr><td><code>read_file</code> · <code>list_dir</code> · <code>glob</code> · <code>grep</code> · <code>ask</code> · <code>web_search</code></td><td class="yes">run</td><td class="yes">run</td><td class="yes">run</td></tr>
           <tr><td><code>write_file</code> · <code>edit_file</code></td><td class="yes">run</td><td class="askcell">prompt</td><td class="no">deny</td></tr>
           <tr><td><code>run_command</code></td><td class="yes">run<sup>*</sup></td><td class="askcell">prompt</td><td class="no">deny</td></tr>
         </tbody>
@@ -257,6 +264,8 @@ stderr: (empty)</code></pre>
           <tr><td><code>-w path</code></td><td>workspace root — every tool path is anchored inside it</td></tr>
           <tr><td><code>GAMMA_MODEL</code> · <code>GAMMA_MODE</code> · <code>GAMMA_CONTEXT</code> · <code>GAMMA_WORKSPACE</code></td><td>environment equivalents for the flags above</td></tr>
           <tr><td><code>GAMMA_NO_SETUP=1</code></td><td>skip the Ollama install/start/pull bootstrap and manage the server yourself</td></tr>
+          <tr><td><code>GAMMA_NO_WEB=1</code></td><td>remove the <code>web_search</code> tool for strictly local-only runs</td></tr>
+          <tr><td><code>GAMMA_NO_WEBVIEW=1</code></td><td>use the console launcher instead of the native window</td></tr>
         </tbody>
       </table>
     </div>

@@ -1,5 +1,6 @@
 #include "tools/registry.hpp"
 
+#include <cstdlib>
 #include <iostream>
 #include <utility>
 
@@ -58,10 +59,9 @@ Registry default_registry() {
   // web_search is the one outbound tool; GAMMA_NO_WEB=1 removes it for
   // strictly local-only runs.
   const char* no_web = std::getenv("GAMMA_NO_WEB");
-  const bool web_enabled =
-      no_web == nullptr || (no_web[0] != '\0' && std::string(no_web) != "0" &&
-                            std::string(no_web) != "false");
-  if (web_enabled) registry.add(make_web_search_tool());
+  const bool web_disabled = no_web != nullptr && no_web[0] != '\0' &&
+                            std::string(no_web) != "0" && std::string(no_web) != "false";
+  if (!web_disabled) registry.add(make_web_search_tool());
   return registry;
 }
 

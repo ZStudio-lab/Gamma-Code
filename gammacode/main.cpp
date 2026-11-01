@@ -19,6 +19,7 @@
 #include "ui/launcher.hpp"
 #include "ui/render.hpp"
 #include "ui/theme.hpp"
+#include "ui/webview_launcher.hpp"
 
 namespace gamma_repl {
 
@@ -62,6 +63,8 @@ void print_help(std::ostream& out) {
       {"glob(pattern, path?)", "skips build/dependency dirs"},
       {"grep(pattern, path?, glob?)", "skips binaries; capped at 200 hits"},
       {"run_command(cmd, timeout_seconds?)", "no prompt (use --no-yolo to gate it)"},
+      {"ask(question, options?)", "pauses the REPL; the answer comes back to the model"},
+      {"web_search(query, max_results?)", "DuckDuckGo; GAMMA_NO_WEB=1 removes it"},
   };
   for (const ToolDoc& tool : kTools) {
     out << "  " << paint(tool.sig, Role::Text);
@@ -401,10 +404,31 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Full-screen launcher (arrow keys: model / mode / workspace / start).
-  // Skipped with --no-ui, which goes straight to the REPL banner.
-  // The alternate screen owns the viewport for the whole interactive session:
-  // scrolling up shows only this session, never the shell's older history.
+  // The native front-end chooser: a small window asking "Open Gamma Code
+  // in:" with GUI / CLI buttons. GUI resizes into the full chat app (an
+  // embedded WebView2 running an in-memory, fully local page); CLI hands the
+  // session to the console TUI. Skipped with --no-ui (straight to the REPL)
+  // or GAMMA_NO_WEBVIEW=1 / when this build has no WebView2 SDK.
+  const char* no_webview_env = std::getenv("GAMMA_NO_WEBVIEW");
+  const bool skip_webview = no_webview_env != nullptr && no_webview_env[0] != '\0' &&
+                            std::string(no_webview_env) != "0";
+  if (!options.no_ui && !skip_webview && gamma::ui::webview_launcher_built()) {
+    const gamma::ui::AppResult result =
+        gamma::ui::run_app(options, client, registry, installed);
+    if (result == gamma::ui::AppResult::Done) {
+      gamma::ui::restore_window_title();
+      return 0; // the GUI chat ran and finished
+    }
+    if (result == gamma::ui::AppResult::Exit) {
+      gamma::ui::restore_window_title();
+      return 0; // closed during the chooser without deciding
+    }
+    // AppResult::Cli → the console flow below; Unavailable → same fallback.
+  }
+
+  // Console flow (CLI choice, no WebView2, or --no-ui): the alternate screen
+  // owns the viewport for the whole interactive session — scrolling up shows
+  // only this session, never the shell's older history.
   gamma::ui::enter_alt_screen();
   if (!options.no_ui) {
     if (!gamma::ui::launcher(options, installed)) {

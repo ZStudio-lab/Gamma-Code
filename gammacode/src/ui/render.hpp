@@ -63,7 +63,7 @@ bool ask_yes_no(const std::string& proposal);
 
 // The ask tool's UI: prints the question (and, when given, a numbered option
 // picker), reads the user's reply on stdin, and echoes what was registered.
-// answered=false means stdin hit EOF — nobody is there to answer
+// answered=false means stdin hit EOF - nobody is there to answer
 // (non-interactive run); the tool turns that into a tool error.
 struct UserAnswer {
   bool answered = false;
@@ -71,6 +71,13 @@ struct UserAnswer {
 };
 UserAnswer ask_user_question(const std::string& question,
                              const std::vector<std::string>& options);
+
+// Front-ends can take over the ask tool's UI (the native webview chat shows
+// its own question dialog). Installed once at startup; the console picker
+// stays the default.
+using QuestionFn =
+    std::function<UserAnswer(const std::string&, const std::vector<std::string>&)>;
+void set_question_handler(QuestionFn handler);
 
 // Human-facing description of a proposed action. run_command shows the full
 // command; edit_file shows the diff (step 2); anything else gets a summary.
@@ -126,6 +133,16 @@ class StreamStopWindow {
 // started. Latched: once true it stays true until the next StreamStopWindow
 // opens. Call it repeatedly from the streaming progress hook.
 bool stop_output_pressed();
+
+// The non-console front-ends (native webview chat) stop a running turn by
+// raising this flag — stop_output_pressed() consumes it exactly like a key
+// press. Clear it before starting a fresh turn.
+void request_output_stop();
+void clear_output_stop();
+
+// The streaming hook inside a front-end turn consumes this instead of the
+// console key poll, so stray terminal keystrokes never stop a GUI turn.
+bool external_stop_pressed();
 
 // Live assistant prose. feed() is called with the text accumulated so far on
 // every streamed chunk; it prints only the newly SAFE bytes (the leading

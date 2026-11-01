@@ -1,8 +1,9 @@
 # Gamma Code
 
-A local-only, terminal-native AI coding agent for Windows. It talks to **Ollama
-on `127.0.0.1:11434` and nothing else** — no cloud, no API keys, no telemetry.
-Not the prompt, not the code, not the conversation ever leaves the machine.
+A local-only-first, terminal-native AI coding agent for Windows. Model traffic
+goes to **Ollama on `127.0.0.1:11434` only** — no cloud inference, no API keys,
+no telemetry. The one outbound tool is `web_search` (DuckDuckGo), and
+`GAMMA_NO_WEB=1` removes it for strictly local-only runs.
 
 - **Windows only.** Single binary, `gamma.exe`.
 - **No toolchain for users.** Prebuilt installer. On first launch gamma offers to
@@ -24,6 +25,8 @@ reports back in an interactive terminal REPL (`γ ❯`).
 | `write_file` / `edit_file` | Create or overwrite (parents created); exact-match replacement tolerant of CRLF/LF and indentation with a block-anchor fallback, `replace_all` for repeated hits, ambiguity refused. In `ask` mode every edit shows a unified diff first |
 | `list_dir` / `glob` / `grep` | Folders, path patterns (optionally rooted at a subdirectory), and regex over contents. Honors the root `.gitignore`, skips VCS/dependency folders and binaries; caps: 500 paths, 200 grep hits (50 per file), `file:line:` format |
 | `run_command` | `cmd.exe /c`, 60‑second timeout, stdout and stderr captured separately |
+| `ask` | Pauses the REPL for a human decision (options offered), feeds the answer back to the model |
+| `web_search` | DuckDuckGo lookup — the one outbound tool; `GAMMA_NO_WEB=1` removes it |
 | compaction | Tiered: truncate old tool output → summarize old turns → hard-drop oldest. Never interrupts a tool call mid-flight |
 
 Replies stream live: assistant prose prints as the model writes it, with

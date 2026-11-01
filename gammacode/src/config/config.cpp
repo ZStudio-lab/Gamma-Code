@@ -244,6 +244,10 @@ model for this machine (1.5b / 3b / 7b / 14b / 32b). After that it starts
 `ollama serve` when needed and uses the newest installed tool-capable model.
 Set GAMMA_NO_SETUP=1 to skip that bootstrap and manage Ollama yourself.
 
+The launcher opens as a native clickable window (embedded WebView2); set
+GAMMA_NO_WEBVIEW=1 to use the console TUI instead. GAMMA_NO_WEB=1 removes the
+web_search tool for strictly local-only runs.
+
 Everything runs without permission prompts by default (mode auto): reads,
 writes, edits and commands are executed straight away with their results
 shown as breadcrumbs. --mode ask|plan re-enables the permission gates. All

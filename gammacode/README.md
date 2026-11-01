@@ -1,12 +1,14 @@
 # Gamma Code
 
-A local-only, terminal-native coding agent. Talks to Ollama on 127.0.0.1 only.
-Reads, writes, edits, searches, and runs commands. Replies stream live; the
-default `auto` mode is hands-free (`--no-yolo` re-adds the `run_command`
-prompt). On first launch it offers to install Ollama, pulls a model matched to
-the machine's RAM/VRAM, starts `ollama serve`, and thereafter uses the newest
-installed tool-capable model. Handles long files via line-ranged reads and tiered
-context compaction.
+A local-only-first, terminal-native coding agent. Model traffic goes to Ollama
+on 127.0.0.1 only — no cloud inference, no API keys, no telemetry; `web_search`
+is the one outbound tool and `GAMMA_NO_WEB=1` removes it. Reads, writes, edits,
+searches, runs commands, pauses for human decisions (`ask`), and looks things
+up on the web. Replies stream live; the default `auto` mode is hands-free
+(`--no-yolo` re-adds the `run_command` prompt). On first launch it offers to
+install Ollama, pulls a model matched to the machine's RAM/VRAM, starts
+`ollama serve`, and thereafter uses the newest installed tool-capable model.
+Handles long files via line-ranged reads and tiered context compaction.
 
 Binary: `gamma` · Namespace: `gamma` · Version: 0.1.2
 
