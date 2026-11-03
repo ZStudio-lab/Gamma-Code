@@ -126,6 +126,18 @@ std::size_t stream_write_callback(const char* data, std::size_t size, std::size_
     }
     newline = state->pending.find('\n');
   }
+  // Stop must be instant: a chunk can arrive without a line terminator
+  // (mid-token), so poll the progress hook even then. Front-ends dedupe the
+  // repeat call (same accumulated content ⇒ no repeated output); returning
+  // false aborts the whole transfer immediately — CURLE_WRITE_ERROR is
+  // interpreted as a user stop above.
+  if (!state->pending.empty() && state->progress != nullptr &&
+      *state->progress != nullptr) {
+    if (!(*state->progress)(state->content)) {
+      state->user_stop = true;
+      return 0;
+    }
+  }
   return bytes;
 }
 
@@ -265,11 +277,13 @@ Message OllamaClient::chat(const nlohmann::json& request, const ProgressFn& prog
   curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &state);
   curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.get());
   // No wall-clock timeout: a chat takes as long as the model takes. The only
-  // abort is a dead stream — fewer than 1 byte/s for 120s means Ollama is not
-  // responding at all, and that DOES raise GammaError so gamma never spins
-  // forever. A slow-but-alive model can run all day; that costs nothing.
+  // abort is a dead stream — fewer than 1 byte/s for 600s means Ollama is not
+  // responding at all, and that DOES raise a *timed out* error so the turn
+  // can retry or give up instead of spinning forever. A slow-but-alive model
+  // can run all day; that costs nothing (large models also stall for a long
+  // time on their first token while loading from disk).
   curl_easy_setopt(curl.get(), CURLOPT_LOW_SPEED_LIMIT, 1L);
-  curl_easy_setopt(curl.get(), CURLOPT_LOW_SPEED_TIME, 120L);
+  curl_easy_setopt(curl.get(), CURLOPT_LOW_SPEED_TIME, 600L);
   // TCP keep-alive so intermediate stalls don't silently hang sockets.
   curl_easy_setopt(curl.get(), CURLOPT_TCP_KEEPALIVE, 1L);
 
@@ -282,6 +296,12 @@ Message OllamaClient::chat(const nlohmann::json& request, const ProgressFn& prog
   } else {
     if (status == CURLE_WRITE_ERROR) {
       throw GammaError("Ollama stream aborted");
+    }
+    if (status == CURLE_OPERATION_TIMEDOUT) {
+      // The low-speed guard fired: Ollama's stream stalled completely (model
+      // finished loading? crashed? system asleep?) — run_turn retries this.
+      throw GammaError("timed out waiting for a response from Ollama — "
+                       "the stream stalled for over 10 minutes");
     }
     if (status != CURLE_OK) {
       throw GammaError(std::format("could not reach Ollama at {} (curl: {})", base_url_,

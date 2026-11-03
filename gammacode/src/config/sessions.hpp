@@ -27,4 +27,14 @@ bool delete_session(const std::string& path);
 // Deletes every saved session. Returns how many files were removed.
 std::size_t delete_all_sessions();
 
+// Rename a session file by updating its JSON "name" field (stored in the file).
+// The file path stays the same; only the display name changes.
+bool rename_session(const std::string& path, const std::string& new_name);
+
+// Last workspace the user actually used (GUI folder picker or --workspace),
+// persisted so launches re-open it instead of silently running in whatever
+// the current directory happens to be. Empty string = nothing remembered yet.
+std::string last_workspace();
+void remember_workspace(const std::string& path);
+
 } // namespace gamma::sessions

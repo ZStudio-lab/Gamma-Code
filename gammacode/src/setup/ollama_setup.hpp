@@ -29,7 +29,8 @@ std::string find_ollama_executable();
 bool server_reachable(const std::string& base_url);
 
 // Spawn `ollama serve` hidden and wait until /api/tags answers (max 30s).
-bool start_ollama_server(const std::string& executable, const std::string& base_url);
+// If out_pid is non-null, receives the PID of the started process (Windows only).
+bool start_ollama_server(const std::string& executable, const std::string& base_url, DWORD* out_pid = nullptr);
 
 // Download the official OllamaSetup.exe and run it silently. Returns the
 // installed ollama.exe path, or empty on failure. Prints its own progress.
@@ -37,7 +38,12 @@ std::string install_ollama();
 
 // Startup flow: make sure the local API is up, offering to install Ollama
 // first when it is missing. A non-interactive run never prompts.
-bool ensure_ollama_ready(const std::string& base_url, bool interactive);
+// If out_pid is non-null and we started Ollama, receives the PID (Windows only).
+bool ensure_ollama_ready(const std::string& base_url, bool interactive, DWORD* out_pid = nullptr);
+
+// After ensure_ollama_ready returns true, call this to get the PID of the
+// Ollama process we started (0 if we didn't start one).
+DWORD get_started_ollama_pid();
 
 // Pull `model`, drawing one live progress line. Returns true on success.
 bool pull_model_with_progress(OllamaClient& client, const std::string& model);

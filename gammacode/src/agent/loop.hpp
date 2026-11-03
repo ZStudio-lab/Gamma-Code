@@ -30,9 +30,14 @@ class TurnSink {
   virtual void on_status(const std::string& label) = 0;
   // A tool call is about to run (permission gate applies afterwards).
   virtual void on_tool(const std::string& name, const nlohmann::json& arguments) = 0;
-  virtual void on_tool_result(const std::string& name, bool ok) = 0;
+  // Full tool output/error follow the status so UIs can offer an
+  // expandable per-step view of what a call actually did.
+  virtual void on_tool_result(const std::string& name, bool ok,
+                              const std::string& output, const std::string& error) = 0;
   // The complete assistant text of a turn that ended without tool calls.
   virtual void on_final(const std::string& content) = 0;
+  // Session name from the model's first message (SESSION_NAME: <name>).
+  virtual void on_session_name(const std::string& name) = 0;
   // Compaction notices, stop notices, wire errors.
   virtual void on_notice(const std::string& text, bool error) = 0;
 };
@@ -68,6 +73,15 @@ public:
 
   // /clear: restart the conversation with just the system prompt.
   void reset_history();
+
+  // The system prompt embeds the CURRENT workspace; call this after the
+  // workspace changes so new turns see the fresh directory (history kept).
+  void refresh_system_message();
+
+  // What the model is actually told this session (prompt + working dir).
+  std::string current_system_prompt() const {
+    return history_.empty() ? std::string() : history_.front().content;
+  }
 
   // Session persistence (step 4): save/load the conversation (everything
   // except the system prompt, which is rebuilt) as a local JSON file so the

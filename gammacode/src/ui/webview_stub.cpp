@@ -6,8 +6,14 @@ namespace gamma::ui {
 
 bool webview_launcher_built() { return false; }
 
-ChatResult run_chat_app(Options&, const std::vector<std::string>&) {
+int run_chooser() { return 0; }
+
+ChatResult run_chat_app(Options&, const StartupHook&) {
   return ChatResult::Unavailable;
+}
+
+AppResult run_app(Options&, const StartupHook&) {
+  return AppResult::Unavailable;
 }
 
 } // namespace gamma::ui

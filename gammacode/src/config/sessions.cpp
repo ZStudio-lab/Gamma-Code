@@ -134,4 +134,64 @@ std::size_t delete_all_sessions() {
   return removed;
 }
 
+// └─ last-used workspace memory ──────────────────────────────────────────────
+// One plain line in %LOCALAPPDATA%\Gamma\last_workspace.txt. Best effort by
+// design: an unreadable or missing file just means "nothing remembered".
+
+std::filesystem::path workspace_memory_file() {
+  const char* appdata = std::getenv("LOCALAPPDATA");
+  if (appdata != nullptr && appdata[0] != '\0')
+    return std::filesystem::path(appdata) / "Gamma" / "last_workspace.txt";
+  return std::filesystem::temp_directory_path() / "gamma-last-workspace.txt";
+}
+
+std::string last_workspace() {
+  std::error_code error;
+  std::ifstream in(workspace_memory_file(), std::ios::binary);
+  if (!in.is_open()) return "";
+  std::string line;
+  std::getline(in, line);
+  // trim whitespace/CR the notepad way
+  while (!line.empty() && (line.back() == '\r' || line.back() == '\n' ||
+                           line.back() == ' ' || line.back() == '\t'))
+    line.pop_back();
+  while (!line.empty() && (line.front() == ' ' || line.front() == '\t'))
+    line.erase(line.begin());
+  if (line.empty()) return "";
+  if (!std::filesystem::exists(std::filesystem::path(line), error)) return "";
+  return line; // a vanished folder is not a workspace
+}
+
+void remember_workspace(const std::string& path) {
+  if (path.empty()) return;
+  std::error_code error;
+  const std::filesystem::path file = workspace_memory_file();
+  std::filesystem::create_directories(file.parent_path(), error);
+  std::ofstream out(file, std::ios::binary | std::ios::trunc);
+  if (!out.is_open()) return;
+  out << path << "\n";
+}
+
+// Rename a session by updating its JSON "name" field.
+// The file path stays the same; only the display name changes.
+bool rename_session(const std::string& path, const std::string& new_name) {
+  if (path.empty() || new_name.empty()) return false;
+  std::error_code error;
+  if (!std::filesystem::exists(std::filesystem::path(path), error)) return false;
+  try {
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) return false;
+    nlohmann::json file;
+    in >> file;
+    file["name"] = new_name;
+    in.close();
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) return false;
+    out << file.dump(2);
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
 } // namespace gamma::sessions

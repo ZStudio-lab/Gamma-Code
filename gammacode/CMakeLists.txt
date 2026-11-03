@@ -20,12 +20,6 @@ FetchContent_Declare(
   GIT_TAG        v3.11.3
   GIT_SHALLOW    TRUE
 )
-FetchContent_Declare(
-  replxx
-  GIT_REPOSITORY https://github.com/AmokHuginnsson/replxx.git
-  GIT_TAG        master # BSD-licensed line editor, works on Windows
-  GIT_SHALLOW    TRUE
-)
 
 # libcurl: prefer the system package (libcurl-dev); fall back to building
 # curl from source so a clean machine needs nothing beyond a compiler.
@@ -56,7 +50,7 @@ if(NOT CURL_FOUND)
   endif()
 endif()
 
-FetchContent_MakeAvailable(json replxx)
+FetchContent_MakeAvailable(json)
 
 # ── WebView2 SDK (native clickable launcher) ──────────────────────────────────
 # The launcher window embeds Edge via WebView2; the loader is statically
@@ -94,24 +88,43 @@ if(WIN32)
 endif()
 
 # --- gamma executable ---------------------------------------------------------
-add_executable(gamma
-  main.cpp
-  src/config/config.cpp
-  src/config/sessions.cpp
-  src/ollama/client.cpp
-  src/setup/ollama_setup.cpp
-  src/agent/messages.cpp
-  src/agent/formatter.cpp
-  src/agent/loop.cpp
-  src/tools/registry.cpp
-  src/tools/fs.cpp
-  src/tools/shell.cpp
-  src/tools/ask.cpp
-  src/tools/web.cpp
-  src/ui/render.cpp
-  src/ui/theme.cpp
-  src/ui/launcher.cpp
-)
+if(WIN32)
+  add_executable(gamma WIN32
+    main.cpp
+    src/config/config.cpp
+    src/config/sessions.cpp
+    src/ollama/client.cpp
+    src/setup/ollama_setup.cpp
+    src/agent/messages.cpp
+    src/agent/formatter.cpp
+    src/agent/loop.cpp
+    src/tools/registry.cpp
+    src/tools/fs.cpp
+    src/tools/shell.cpp
+    src/tools/ask.cpp
+    src/tools/web.cpp
+    src/ui/render.cpp
+    src/ui/theme.cpp
+  )
+else()
+  add_executable(gamma
+    main.cpp
+    src/config/config.cpp
+    src/config/sessions.cpp
+    src/ollama/client.cpp
+    src/setup/ollama_setup.cpp
+    src/agent/messages.cpp
+    src/agent/formatter.cpp
+    src/agent/loop.cpp
+    src/tools/registry.cpp
+    src/tools/fs.cpp
+    src/tools/shell.cpp
+    src/tools/ask.cpp
+    src/tools/web.cpp
+    src/ui/render.cpp
+    src/ui/theme.cpp
+  )
+endif()
 
 if(WIN32)
   target_sources(gamma PRIVATE gamma.rc)
@@ -123,7 +136,7 @@ target_compile_definitions(gamma PRIVATE GAMMA_VERSION="${PROJECT_VERSION}")
 target_link_libraries(gamma PRIVATE
   CURL::libcurl
   nlohmann_json::nlohmann_json
-  replxx
+  dwmapi
 )
 
 if(TARGET WebView2Loader)

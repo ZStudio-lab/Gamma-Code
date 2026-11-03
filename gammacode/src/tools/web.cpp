@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <mutex>
 #include <string>
+#include <thread>
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -62,7 +63,7 @@ std::string html_unescape(std::string text) {
   replace_all(amp + "mdash;", "—");
   replace_all(amp + "lt;", "<");
   replace_all(amp + "gt;", ">");
-  replace_all(amp + "amp;", "&"); // last: &lt; ends up as "<", never "<"
+  replace_all(amp + "amp;", "&"); // last: < ends up as "<", never "<"
   // numeric references: &#8594; and &#x2192;
   for (std::size_t at = text.find("&#"); at != std::string::npos;
        at = text.find("&#", at + 1)) {
@@ -169,52 +170,168 @@ struct WebResult {
   std::string snippet;
 };
 
-// Pulls every <a ... href="URL" ...>TITLE</a> whose tag carries `klass`, and
-// the snippet block that follows it. Deliberately crude: no HTML library, and
-// the page is machine-generated.
-std::vector<WebResult> parse_ddg_html(const std::string& html) {
+// ── robust multi-selector HTML parsing ─────────────────────────────────────
+// DDG's HTML layout changes periodically. We try multiple selectors in order
+// of specificity so one layout change doesn't break everything.
+static std::vector<WebResult> extract_results(const std::string& html,
+                                              const std::vector<std::string>& title_selectors,
+                                              const std::vector<std::string>& url_attr = {"href"}) {
   std::vector<WebResult> results;
-  std::size_t at = 0;
-  while (results.size() < 10) {
-    const std::size_t anchor = html.find("result__a", at);
-    if (anchor == std::string::npos) break;
-    const std::size_t tag_open = html.rfind("<a", anchor);
-    const std::size_t tag_close = html.find("</a>", anchor);
-    if (tag_open == std::string::npos || tag_close == std::string::npos ||
-        tag_close < anchor) {
-      at = anchor + 9;
-      continue;
-    }
-    const std::string tag = html.substr(tag_open, tag_close - tag_open);
+  // Simple token-based parser: find all <a ...>...</a> pairs with matching class
+  for (const std::string& sel : title_selectors) {
+    std::size_t at = 0;
+    while (results.size() < 10) {
+      const std::size_t anchor = html.find(sel, at);
+      if (anchor == std::string::npos) break;
 
-    WebResult item;
-    const std::size_t href = tag.find("href=\"");
-    if (href != std::string::npos) {
-      const std::size_t begin = href + 6;
-      const std::size_t end = tag.find('"', begin);
-      if (end != std::string::npos) item.url = unwrap_ddg_link(tag.substr(begin, end - begin));
-    }
-    const std::size_t text_begin = tag.find('>') + 1;
-    if (text_begin < tag.size()) item.title = strip_tags(tag.substr(text_begin));
-
-    // snippet: the next result__snippet block after this anchor
-    const std::size_t snippet = html.find("result__snippet", tag_close);
-    if (snippet != std::string::npos) {
-      const std::size_t s_tag = html.rfind("<a", snippet);
-      const std::size_t s_close = html.find("</a>", snippet);
-      if (s_tag != std::string::npos && s_close != std::string::npos && s_close > snippet) {
-        const std::string s_tag_text = html.substr(s_tag, s_close - s_tag);
-        const std::size_t s_text = s_tag_text.find('>') + 1;
-        if (s_text < s_tag_text.size())
-          item.snippet = collapse_space(s_tag_text.substr(s_text));
+      // Find the enclosing <a> tag
+      const std::size_t tag_open = html.rfind("<a", anchor);
+      if (tag_open == std::string::npos) {
+        at = anchor + sel.size();
+        continue;
       }
-      at = s_close;
-    } else {
-      at = tag_close;
+      const std::size_t tag_close = html.find("</a>", anchor);
+      if (tag_close == std::string::npos || tag_close < anchor) {
+        at = anchor + sel.size();
+        continue;
+      }
+      const std::string tag = html.substr(tag_open, tag_close - tag_open + 4);
+
+      WebResult item;
+      // Extract URL from href attribute
+      for (const std::string& attr : url_attr) {
+        const std::size_t href = tag.find(attr + "=\"");
+        if (href != std::string::npos) {
+          const std::size_t begin = href + attr.size() + 2;
+          const std::size_t end = tag.find('"', begin);
+          if (end != std::string::npos) {
+            item.url = unwrap_ddg_link(tag.substr(begin, end - begin));
+            break;
+          }
+        }
+      }
+      // Extract title text (between > and <)
+      const std::size_t text_begin = tag.find('>');
+      if (text_begin != std::string::npos && text_begin + 1 < tag.size()) {
+        const std::size_t text_end = tag.find('<', text_begin + 1);
+        if (text_end != std::string::npos) {
+          item.title = strip_tags(tag.substr(text_begin + 1, text_end - text_begin - 1));
+        }
+      }
+
+      // Snippet: look for a nearby snippet container
+      static const std::vector<std::string> snippet_sels = {
+          "result__snippet", "result__snippet__text", "web-result__snippet",
+          "snippet", "result-snippet", "data-snippet"
+      };
+      for (const std::string& ss : snippet_sels) {
+        const std::size_t snippet = html.find(ss, tag_close);
+        if (snippet != std::string::npos) {
+          const std::size_t s_open = html.rfind("<", snippet);
+          const std::size_t s_close = html.find(">", snippet);
+          if (s_open != std::string::npos && s_close != std::string::npos && s_close > snippet) {
+            // Find the closing tag of the snippet container
+            const std::size_t container_end = html.find("</", s_close);
+            if (container_end != std::string::npos) {
+              const std::string snippet_html = html.substr(s_open, container_end - s_open);
+              item.snippet = collapse_space(snippet_html);
+              break;
+            }
+          }
+        }
+      }
+
+      if (!item.title.empty() && !item.url.empty()) {
+        results.push_back(std::move(item));
+      }
+      at = tag_close + 4;
     }
-    if (!item.title.empty() && !item.url.empty()) results.push_back(std::move(item));
+    if (!results.empty()) break; // succeeded with this selector
   }
   return results;
+}
+
+std::vector<WebResult> parse_ddg_html(const std::string& html) {
+  // Multiple selector sets for different DDG HTML versions
+  static const std::vector<std::vector<std::string>> selector_sets = {
+      // Modern DDG (2024+): class="result__a"
+      {"result__a", "result__title", "result__url"},
+      // Lite DDG / older: class="result__snippet" near <a class="result__snippet__text">
+      {"result__snippet__text"},
+      // Alternative layout: data-testid attributes
+      {"web-result__title-link", "web-result__link"},
+      // Very old / fallback: generic result links
+      {"result-link", "result__link"},
+  };
+
+  for (const auto& selectors : selector_sets) {
+    auto results = extract_results(html, selectors);
+    if (!results.empty()) return results;
+  }
+  return {};
+}
+
+// ── curl request with retry & fallback ──────────────────────────────────────
+struct FetchResult {
+  bool ok = false;
+  long http_code = 0;
+  std::string body;
+  std::string error;
+};
+
+FetchResult fetch_with_retry(const std::string& url, int max_attempts = 3) {
+  std::call_once(curl_once(), [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
+
+  for (int attempt = 1; attempt <= max_attempts; ++attempt) {
+    CURL* curl = curl_easy_init();
+    if (curl == nullptr) {
+      return {false, 0, "", "curl init failed"};
+    }
+
+    std::string body;
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 4L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 25L);
+    curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
+    curl_slist* headers = nullptr;
+    headers = curl_slist_append(
+        headers, "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                 " (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
+    headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
+    headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+    const CURLcode status = curl_easy_perform(curl);
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    if (status == CURLE_OK && http_code == 200) {
+      return {true, http_code, body, ""};
+    }
+
+    // Don't retry on client errors (4xx) — they won't succeed
+    if (http_code >= 400 && http_code < 500) {
+      return {false, http_code, body, "search engine answered HTTP " + std::to_string(http_code)};
+    }
+
+    // Transient failure — wait and retry (exponential backoff)
+    if (attempt < max_attempts) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(500 * attempt));
+      continue;
+    }
+
+    std::string err = "request failed";
+    if (status != CURLE_OK) err += " (curl: " + std::string(curl_easy_strerror(status)) + ")";
+    else err += " (HTTP " + std::to_string(http_code) + ")";
+    return {false, http_code, body, err};
+  }
+  return {false, 0, "", "max retries exceeded"};
 }
 
 } // namespace
@@ -257,45 +374,31 @@ Tool make_web_search_tool() {
     if (arguments.contains("max_results") && arguments["max_results"].is_number_integer())
       max_results = std::clamp<long>(arguments["max_results"].get<long>(), 1, 10);
 
-    std::call_once(curl_once(), [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
+    // Primary: DuckDuckGo HTML endpoint
+    const std::string ddg_url = "https://html.duckduckgo.com/html/?q=" + url_encode(query);
 
-    CURL* curl = curl_easy_init();
-    if (curl == nullptr) {
-      return ToolResult{false, "", "web_search: curl init failed"};
-    }
-    std::string body;
-    const std::string url = "https://html.duckduckgo.com/html/?q=" + url_encode(query);
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &write_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 4L);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 20L);
-    curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
-    curl_slist* headers = nullptr;
-    headers = curl_slist_append(
-        headers, "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                 " (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
-    headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    FetchResult result = fetch_with_retry(ddg_url, 3);
 
-    const CURLcode status = curl_easy_perform(curl);
-    long http_code = 0;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-
-    if (status != CURLE_OK) {
-      return ToolResult{false, "", std::string("web_search: request failed (curl: ") +
-                                     curl_easy_strerror(status) + ")"};
-    }
-    if (http_code != 200) {
-      return ToolResult{false, "", "web_search: search engine answered HTTP " +
-                                      std::to_string(http_code) + " — try again later"};
+    // Fallback: DDG Lite (lighter, sometimes works when main doesn't)
+    if (!result.ok) {
+      const std::string lite_url = "https://lite.duckduckgo.com/lite/?q=" + url_encode(query);
+      result = fetch_with_retry(lite_url, 2);
     }
 
-    std::vector<WebResult> results = parse_ddg_html(body);
+    if (!result.ok) {
+      return ToolResult{false, "", "web_search: " + result.error + " — try again later"};
+    }
+
+    std::vector<WebResult> results = parse_ddg_html(result.body);
+    if (results.empty()) {
+      // Try parsing Lite DDG format (table-based)
+      if (result.body.find("table") != std::string::npos &&
+          result.body.find("class=\"link\"") != std::string::npos) {
+        // Lite DDG uses <table><tr><td class="link"><a href="...">Title</a></td></tr>
+        results = extract_results(result.body, {"class=\"link\""});
+      }
+    }
+
     if (results.empty()) {
       return ToolResult{true, "no results for '" + query + "'", ""};
     }

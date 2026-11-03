@@ -315,6 +315,10 @@ bool download_file(const std::string& url, const std::string& destination, bool 
 
 } // namespace
 
+// PID of Ollama started by this process (0 if we didn't start it).
+// Written by ensure_ollama_ready, read by the GUI startup worker.
+static std::atomic<DWORD> g_started_ollama_pid{0};
+
 /* ───────────────────────── public API ───────────────────────── */
 
 Hardware detect_hardware() {
@@ -405,7 +409,7 @@ bool server_reachable(const std::string& base_url) {
   }
 }
 
-bool start_ollama_server(const std::string& executable, const std::string& base_url) {
+bool start_ollama_server(const std::string& executable, const std::string& base_url, DWORD* out_pid) {
 #ifdef _WIN32
   const std::string log_path = serve_log_path();
   std::error_code error;
@@ -440,6 +444,7 @@ bool start_ollama_server(const std::string& executable, const std::string& base_
   if (log != INVALID_HANDLE_VALUE) CloseHandle(log);
   if (null_input != INVALID_HANDLE_VALUE) CloseHandle(null_input);
   if (!started) return false;
+  if (out_pid) *out_pid = process.dwProcessId;
   CloseHandle(process.hProcess);
   CloseHandle(process.hThread);
 #else
@@ -506,7 +511,7 @@ std::string install_ollama() {
   return executable;
 }
 
-bool ensure_ollama_ready(const std::string& base_url, bool interactive) {
+bool ensure_ollama_ready(const std::string& base_url, bool interactive, DWORD* out_pid) {
   if (server_reachable(base_url)) return true;
 
   std::string executable = find_ollama_executable();
@@ -541,7 +546,7 @@ bool ensure_ollama_ready(const std::string& base_url, bool interactive) {
   ui::Spinner spinner;
   spinner.start();
   spinner.set_label("starting Ollama");
-  const bool started = start_ollama_server(executable, base_url);
+  const bool started = start_ollama_server(executable, base_url, out_pid);
   spinner.stop();
   if (!started) {
     std::cout << "  " << paint("✗ Ollama did not answer on " + base_url, Role::Error) << "\n"
@@ -551,7 +556,16 @@ bool ensure_ollama_ready(const std::string& base_url, bool interactive) {
   }
   std::cout << "  " << paint("✔ Ollama ready", Role::Success) << " "
             << paint(base_url, Role::Muted) << "\n";
+  if (out_pid && *out_pid != 0) {
+    g_started_ollama_pid.store(*out_pid, std::memory_order_release);
+  }
   return true;
+}
+
+// After ensure_ollama_ready returns true, call this to get the PID of the
+// Ollama process we started (0 if we didn't start one).
+DWORD get_started_ollama_pid() {
+  return g_started_ollama_pid.load(std::memory_order_acquire);
 }
 
 bool pull_model_with_progress(OllamaClient& client, const std::string& model) {
